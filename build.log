@@ -1,0 +1,644 @@
+
+> plasma-plasma@0.1.0 build
+> next build
+
+▲ Next.js 16.1.4 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Error: Cannot apply unknown utility class `border-border`. Are you using CSS modules or similar and missing `@reference`? https://tailwindcss.com/docs/functions-and-directives#reference-directive
+    [2m[at onInvalidCandidate (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:21:1314)][0m
+    [2m[at Te (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:16:36652)][0m
+    [2m[at /Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:21:355][0m
+    [2m[at Rr (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:3:1718)][0m
+    [2m[at _ (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:3:1377)][0m
+    [2m[at $e (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:21:172)][0m
+    [2m[at un (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:38:294)][0m
+    [2m[at process.processTicksAndRejections (node:internal/process/task_queues:105:5)][0m
+    [2m[at async cn (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/tailwindcss/dist/lib.js:38:631)][0m
+    [2m[at async Xr (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/@tailwindcss/node/dist/index.js:10:3417)][0m
+
+> Build error occurred
+Error: Turbopack build failed with 25 errors:
+./src/app/globals.css
+Error evaluating Node.js code
+CssSyntaxError: tailwindcss: /Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/src/app/globals.css:1:1: Cannot apply unknown utility class `border-border`. Are you using CSS modules or similar and missing `@reference`? https://tailwindcss.com/docs/functions-and-directives#reference-directive
+    at Input.error (node_modules/postcss/lib/input.js:135:16) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/node_modules_fe693df6._.js:4651:22]
+    at Root.error (node_modules/postcss/lib/node.js:146:32) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/node_modules_fe693df6._.js:928:38]
+    [at Object.Once (/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/node_modules/@tailwindcss/postcss/dist/index.js:10:6911)]
+    [at process.processTicksAndRejections (node:internal/process/task_queues:105:5)]
+    at async LazyResult.runAsync (node_modules/postcss/lib/lazy-result.js:293:11) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/node_modules_fe693df6._.js:6206:21]
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/[root-of-the-server]__51225daf._.js:146:36]
+    at async run (turbopack:///[turbopack-node]/ipc/evaluate.ts:92:23) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/[root-of-the-server]__974941ed._.js:443:31]
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.tsx [Server Component]
+
+
+./src/components/chat/ChatbotWidget.tsx:1:28
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useRef[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mInput[39m } [36mfrom[39m [32m'@/components/ui/input'[39m[33m;[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import traces:
+  Server Component:
+    ./src/components/chat/ChatbotWidget.tsx
+    ./src/components/layout/DashboardLayout.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+  Client Component Browser:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component Browser]
+    ./src/components/layout/DashboardLayout.tsx [Client Component Browser]
+    ./src/components/pages/AIDiscovery.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component SSR]
+    ./src/components/layout/DashboardLayout.tsx [Client Component SSR]
+    ./src/components/pages/AIDiscovery.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+
+./src/components/chat/ChatbotWidget.tsx:1:20
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useRef[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mInput[39m } [36mfrom[39m [32m'@/components/ui/input'[39m[33m;[39m[0m
+
+You're importing a component that needs `useRef`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import traces:
+  Server Component:
+    ./src/components/chat/ChatbotWidget.tsx
+    ./src/components/layout/DashboardLayout.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+  Client Component Browser:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component Browser]
+    ./src/components/layout/DashboardLayout.tsx [Client Component Browser]
+    ./src/components/pages/AIDiscovery.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component SSR]
+    ./src/components/layout/DashboardLayout.tsx [Client Component SSR]
+    ./src/components/pages/AIDiscovery.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+
+./src/components/chat/ChatbotWidget.tsx:2:10
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { useState[33m,[39m useRef[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mInput[39m } [36mfrom[39m [32m'@/components/ui/input'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { [33mScrollArea[39m } [36mfrom[39m [32m'@/components/ui/scroll-area'[39m[33m;[39m[0m
+
+You're importing a component that needs `useRouter`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import traces:
+  Server Component:
+    ./src/components/chat/ChatbotWidget.tsx
+    ./src/components/layout/DashboardLayout.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+  Client Component Browser:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component Browser]
+    ./src/components/layout/DashboardLayout.tsx [Client Component Browser]
+    ./src/components/pages/AIDiscovery.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component SSR]
+    ./src/components/layout/DashboardLayout.tsx [Client Component SSR]
+    ./src/components/pages/AIDiscovery.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+
+./src/components/chat/ChatbotWidget.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useRef[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mInput[39m } [36mfrom[39m [32m'@/components/ui/input'[39m[33m;[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import traces:
+  Server Component:
+    ./src/components/chat/ChatbotWidget.tsx
+    ./src/components/layout/DashboardLayout.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+  Client Component Browser:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component Browser]
+    ./src/components/layout/DashboardLayout.tsx [Client Component Browser]
+    ./src/components/pages/AIDiscovery.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/chat/ChatbotWidget.tsx [Client Component SSR]
+    ./src/components/layout/DashboardLayout.tsx [Client Component SSR]
+    ./src/components/pages/AIDiscovery.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+
+./src/components/layout/DashboardLayout.tsx:3:10
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { [33mReactNode[39m } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m 2 |[39m [36mimport[39m [33mLink[39m [36mfrom[39m [32m'next/link'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 3 |[39m [36mimport[39m { usePathname } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 4 |[39m [36mimport[39m {
+ [90m 5 |[39m   [33mSidebar[39m[33m,[39m
+ [90m 6 |[39m   [33mSidebarContent[39m[33m,[39m[0m
+
+You're importing a component that needs `usePathname`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import traces:
+  Server Component:
+    ./src/components/layout/DashboardLayout.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+  Client Component Browser:
+    ./src/components/layout/DashboardLayout.tsx [Client Component Browser]
+    ./src/components/pages/AIDiscovery.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Client Component Browser]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/layout/DashboardLayout.tsx [Client Component SSR]
+    ./src/components/pages/AIDiscovery.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Client Component SSR]
+    ./src/app/ai-discovery/page.tsx [Server Component]
+
+
+./src/components/pages/Dashboard.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m [33mLink[39m [36mfrom[39m [32m'next/link'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+
+./src/components/pages/Dashboard.tsx:3:10
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m 2 |[39m [36mimport[39m [33mLink[39m [36mfrom[39m [32m'next/link'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 3 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 4 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { [33mCard[39m[33m,[39m [33mCardContent[39m[33m,[39m [33mCardHeader[39m[33m,[39m [33mCardTitle[39m } [36mfrom[39m [32m'@/components/ui/card'[39m[33m;[39m
+ [90m 6 |[39m [36mimport[39m { [33mBadge[39m } [36mfrom[39m [32m'@/components/ui/badge'[39m[33m;[39m[0m
+
+You're importing a component that needs `useRouter`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+
+./src/components/pages/Dashboard.tsx:1:21
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useEffect[33m,[39m useState } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                     [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m [33mLink[39m [36mfrom[39m [32m'next/link'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+
+./src/components/pages/Pipeline.tsx:1:20
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { useSearchParams[33m,[39m useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mTabs[39m[33m,[39m [33mTabsContent[39m[33m,[39m [33mTabsList[39m[33m,[39m [33mTabsTrigger[39m } [36mfrom[39m [32m'@/components/ui/tabs'[39m[33m;[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pages/Pipeline.tsx:2:27
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { useSearchParams[33m,[39m useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m   |[39m                           [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mTabs[39m[33m,[39m [33mTabsContent[39m[33m,[39m [33mTabsList[39m[33m,[39m [33mTabsTrigger[39m } [36mfrom[39m [32m'@/components/ui/tabs'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { [33mCard[39m[33m,[39m [33mCardContent[39m[33m,[39m [33mCardDescription[39m[33m,[39m [33mCardHeader[39m[33m,[39m [33mCardTitle[39m } [36mfrom[39m [32m'@/components/ui/card'[39m[33m;[39m[0m
+
+You're importing a component that needs `useRouter`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pages/Pipeline.tsx:2:10
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { useSearchParams[33m,[39m useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mTabs[39m[33m,[39m [33mTabsContent[39m[33m,[39m [33mTabsList[39m[33m,[39m [33mTabsTrigger[39m } [36mfrom[39m [32m'@/components/ui/tabs'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { [33mCard[39m[33m,[39m [33mCardContent[39m[33m,[39m [33mCardDescription[39m[33m,[39m [33mCardHeader[39m[33m,[39m [33mCardTitle[39m } [36mfrom[39m [32m'@/components/ui/card'[39m[33m;[39m[0m
+
+You're importing a component that needs `useSearchParams`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pages/Pipeline.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { useSearchParams[33m,[39m useRouter } [36mfrom[39m [32m'next/navigation'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m [33mDashboardLayout[39m [36mfrom[39m [32m'@/components/layout/DashboardLayout'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mTabs[39m[33m,[39m [33mTabsContent[39m[33m,[39m [33mTabsList[39m[33m,[39m [33mTabsTrigger[39m } [36mfrom[39m [32m'@/components/ui/tabs'[39m[33m;[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/AIScreeningDialog.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m {
+ [90m 3 |[39m   [33mDialog[39m[33m,[39m
+ [90m 4 |[39m   [33mDialogContent[39m[33m,[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/AIScreeningDialog.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/CompanyDetailDialog.tsx:1:20
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m {
+ [90m 3 |[39m   [33mDialog[39m[33m,[39m
+ [90m 4 |[39m   [33mDialogContent[39m[33m,[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/CompanyDetailDialog.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+
+./src/components/pipeline/CompanyDetailDialog.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m {
+ [90m 3 |[39m   [33mDialog[39m[33m,[39m
+ [90m 4 |[39m   [33mDialogContent[39m[33m,[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/CompanyDetailDialog.tsx
+    ./src/components/pages/Dashboard.tsx
+    ./src/app/dashboard/page.tsx
+
+
+./src/components/pipeline/L0AddCompany.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mTabs[39m[33m,[39m [33mTabsContent[39m[33m,[39m [33mTabsList[39m[33m,[39m [33mTabsTrigger[39m } [36mfrom[39m [32m'@/components/ui/tabs'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mLabel[39m } [36mfrom[39m [32m'@/components/ui/label'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mInput[39m } [36mfrom[39m [32m'@/components/ui/input'[39m[33m;[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/L0AddCompany.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/MarketScreeningResults.tsx:1:20
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mCard[39m[33m,[39m [33mCardContent[39m[33m,[39m [33mCardDescription[39m[33m,[39m [33mCardHeader[39m[33m,[39m [33mCardTitle[39m } [36mfrom[39m [32m'@/components/ui/card'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mBadge[39m } [36mfrom[39m [32m'@/components/ui/badge'[39m[33m;[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/MarketScreeningResults.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/MarketScreeningResults.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mCard[39m[33m,[39m [33mCardContent[39m[33m,[39m [33mCardDescription[39m[33m,[39m [33mCardHeader[39m[33m,[39m [33mCardTitle[39m } [36mfrom[39m [32m'@/components/ui/card'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mBadge[39m } [36mfrom[39m [32m'@/components/ui/badge'[39m[33m;[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/MarketScreeningResults.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/MarketScreeningStatus.tsx:1:20
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { format } [36mfrom[39m [32m'date-fns'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mBadge[39m } [36mfrom[39m [32m'@/components/ui/badge'[39m[33m;[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/MarketScreeningStatus.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/MarketScreeningStatus.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { format } [36mfrom[39m [32m'date-fns'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'@/components/ui/button'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { [33mBadge[39m } [36mfrom[39m [32m'@/components/ui/badge'[39m[33m;[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/MarketScreeningStatus.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/components/pipeline/PromotedDialog.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m {
+ [90m 3 |[39m   [33mDialog[39m[33m,[39m
+ [90m 4 |[39m   [33mDialogContent[39m[33m,[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/components/pipeline/PromotedDialog.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/hooks/useAuth.tsx:1:31
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect[33m,[39m createContext[33m,[39m useContext[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mUser[39m[33m,[39m [33mSession[39m } [36mfrom[39m [32m'@supabase/supabase-js'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { supabase } [36mfrom[39m [32m'@/integrations/supabase/client'[39m[33m;[39m
+ [90m 4 |[39m[0m
+
+You're importing a component that needs `createContext`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/hooks/useAuth.tsx
+    ./src/components/pipeline/PromotedDialog.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/hooks/useAuth.tsx:1:20
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect[33m,[39m createContext[33m,[39m useContext[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mUser[39m[33m,[39m [33mSession[39m } [36mfrom[39m [32m'@supabase/supabase-js'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { supabase } [36mfrom[39m [32m'@/integrations/supabase/client'[39m[33m;[39m
+ [90m 4 |[39m[0m
+
+You're importing a component that needs `useEffect`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/hooks/useAuth.tsx
+    ./src/components/pipeline/PromotedDialog.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+./src/hooks/useAuth.tsx:1:10
+Ecmascript file had an error
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { useState[33m,[39m useEffect[33m,[39m createContext[33m,[39m useContext[33m,[39m [33mReactNode[39m } [36mfrom[39m [32m'react'[39m[33m;[39m
+ [90m   |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mUser[39m[33m,[39m [33mSession[39m } [36mfrom[39m [32m'@supabase/supabase-js'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { supabase } [36mfrom[39m [32m'@/integrations/supabase/client'[39m[33m;[39m
+ [90m 4 |[39m[0m
+
+You're importing a component that needs `useState`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.
+
+ Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+
+
+
+Import trace:
+  Server Component:
+    ./src/hooks/useAuth.tsx
+    ./src/components/pipeline/PromotedDialog.tsx
+    ./src/components/pages/Pipeline.tsx
+    ./src/app/pipeline/page.tsx
+
+
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/[root-of-the-server]__51225daf._.js:146:36])
+    at async run (turbopack:///[turbopack-node]/ipc/evaluate.ts:92:23) [/Users/nicoalimin/.gemini/antigravity/playground/plasma-plasma/.next/build/chunks/[root-of-the-server]__974941ed._.js:443:31])
+    at <unknown> (./src/components/chat/ChatbotWidget.tsx:1:28)
+    at <unknown> (./src/components/chat/ChatbotWidget.tsx:1:20)
+    at <unknown> (./src/components/chat/ChatbotWidget.tsx:2:10)
+    at <unknown> (./src/components/chat/ChatbotWidget.tsx:1:10)
+    at <unknown> (./src/components/layout/DashboardLayout.tsx:3:10)
+    at <unknown> (./src/components/pages/Dashboard.tsx:1:10)
+    at <unknown> (./src/components/pages/Dashboard.tsx:3:10)
+    at <unknown> (./src/components/pages/Dashboard.tsx:1:21)
+    at <unknown> (./src/components/pages/Pipeline.tsx:1:20)
+    at <unknown> (./src/components/pages/Pipeline.tsx:2:27)
+    at <unknown> (./src/components/pages/Pipeline.tsx:2:10)
+    at <unknown> (./src/components/pages/Pipeline.tsx:1:10)
+    at <unknown> (./src/components/pipeline/AIScreeningDialog.tsx:1:10)
+    at <unknown> (./src/components/pipeline/CompanyDetailDialog.tsx:1:20)
+    at <unknown> (./src/components/pipeline/CompanyDetailDialog.tsx:1:10)
+    at <unknown> (./src/components/pipeline/L0AddCompany.tsx:1:10)
+    at <unknown> (./src/components/pipeline/MarketScreeningResults.tsx:1:20)
+    at <unknown> (./src/components/pipeline/MarketScreeningResults.tsx:1:10)
+    at <unknown> (./src/components/pipeline/MarketScreeningStatus.tsx:1:20)
+    at <unknown> (./src/components/pipeline/MarketScreeningStatus.tsx:1:10)
+    at <unknown> (./src/components/pipeline/PromotedDialog.tsx:1:10)
+    at <unknown> (./src/hooks/useAuth.tsx:1:31)
+    at <unknown> (./src/hooks/useAuth.tsx:1:20)
+    at <unknown> (./src/hooks/useAuth.tsx:1:10)
