@@ -544,7 +544,7 @@ export default function CompanyDetailDialog({
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-sm">
-                    Filters have not been run yet. Click "Screen" from the L0 stage to run filters.
+                    Filters have not been run yet. Click &quot;Screen&quot; from the L0 stage to run filters.
                   </p>
                 )}
               </CardContent>

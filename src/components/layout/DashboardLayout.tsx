@@ -1,5 +1,8 @@
+'use client';
+
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -35,14 +38,14 @@ const navigation = [
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const location = useLocation();
+  const pathname = usePathname();
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="border-b border-sidebar-border p-4">
-            <Link to="/dashboard" className="flex items-center gap-3">
+            <Link href="/dashboard" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
                 <Briefcase className="h-5 w-5 text-sidebar-primary-foreground" />
               </div>
@@ -59,8 +62,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {navigation.map((item) => {
-                    const isActive = location.pathname === item.href ||
-                      (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
+                    const isActive = pathname === item.href ||
+                      (item.href !== '/dashboard' && pathname.startsWith(item.href));
                     const isAIDiscovery = item.href === '/ai-discovery';
                     return (
                       <SidebarMenuItem key={item.name}>
@@ -74,7 +77,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                             isActive && isAIDiscovery && 'bg-purple-500/20 text-purple-300'
                           )}
                         >
-                          <Link to={item.href}>
+                          <Link href={item.href}>
                             <item.icon className={cn("h-4 w-4", isAIDiscovery && "text-purple-400")} />
                             <span>{item.name}</span>
                           </Link>
@@ -95,7 +98,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </SidebarInset>
 
         {/* Chatbot Widget - shown on all pages except AI Discovery */}
-        {location.pathname !== '/ai-discovery' && <ChatbotWidget />}
+        {pathname !== '/ai-discovery' && <ChatbotWidget />}
       </div>
     </SidebarProvider>
   );

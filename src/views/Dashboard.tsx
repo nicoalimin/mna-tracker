@@ -1,5 +1,8 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -129,7 +132,7 @@ const mockCompanyMetrics: CompanyMetric[] = [
 ];
 
 export default function Dashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stageCounts, setStageCounts] = useState<StageCount[]>([]);
   const [totalDeals, setTotalDeals] = useState(0);
@@ -142,7 +145,7 @@ export default function Dashboard() {
   const itemsPerPage = 5;
 
   const handleStageClick = (stage: DealStage) => {
-    navigate(`/pipeline?stage=${stage}`);
+    router.push(`/pipeline?stage=${stage}`);
   };
 
   useEffect(() => {
@@ -413,7 +416,7 @@ export default function Dashboard() {
                 Company Overview
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/master-data">
+                <Link href="/master-data">
                   View All <ArrowUpRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
@@ -566,7 +569,7 @@ export default function Dashboard() {
                 Recent Activity
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/pipeline">
+                <Link href="/pipeline">
                   View All <ArrowUpRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>

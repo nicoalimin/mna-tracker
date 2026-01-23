@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,7 +155,8 @@ const L1StatusBadge = ({ status }: { status: L1Status | null }) => {
 };
 
 export default function Pipeline() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const initialTab = searchParams.get('stage') || 'L0';
   const [activeTab, setActiveTab] = useState<DealStage>(initialTab as DealStage);
   const [companies, setCompanies] = useState<CompanyWithDeal[]>([]);
@@ -267,7 +270,7 @@ export default function Pipeline() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as DealStage);
-    setSearchParams({ stage: value });
+    router.push(`/pipeline?stage=${value}`);
   };
 
   // Get unique sectors for filter

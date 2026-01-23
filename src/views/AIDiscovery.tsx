@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,7 +99,7 @@ const getMockResponse = (query: string): { response: string; companies?: MockCom
 
     if (lowerQuery.includes('chiptech') || lowerQuery.includes('chip tech')) {
       return {
-        response: `## 🔬 Deep Dive: ChipTech Solutions
+        response: `## Deep Dive: ChipTech Solutions
 
 ### Company Overview
 ChipTech Solutions is a leading semiconductor manufacturer specializing in custom IC design and fabrication services. Founded in 2015, the company has grown to become a key supplier for automotive and IoT applications.
@@ -110,31 +112,31 @@ ChipTech Solutions is a leading semiconductor manufacturer specializing in custo
 | EBITDA Margin | 15.0% | 15.0% | 16.0% | +1.0pp |
 
 ### Strengths
-✅ Strong revenue growth (18.6% CAGR)
-✅ Improving EBITDA margins
-✅ Diversified customer base (automotive, IoT, industrial)
-✅ Proprietary manufacturing process
+- Strong revenue growth (18.6% CAGR)
+- Improving EBITDA margins
+- Diversified customer base (automotive, IoT, industrial)
+- Proprietary manufacturing process
 
 ### Risks
-⚠️ Customer concentration: Top 3 customers = 45% revenue
-⚠️ Capex intensive business model
-⚠️ Exposure to semiconductor cycle volatility
+- Customer concentration: Top 3 customers = 45% revenue
+- Capex intensive business model
+- Exposure to semiconductor cycle volatility
 
 ### Valuation Analysis
-• **Current Valuation:** $900M
-• **EV/Revenue (2025):** 2.0x
-• **EV/EBITDA (2025):** 12.5x
-• **Comparable Median:** 14.0x EV/EBITDA
-• **Implied Upside:** ~12%
+- **Current Valuation:** $900M
+- **EV/Revenue (2025):** 2.0x
+- **EV/EBITDA (2025):** 12.5x
+- **Comparable Median:** 14.0x EV/EBITDA
+- **Implied Upside:** ~12%
 
 ### Recommendation
-**🟢 ATTRACTIVE** - Strong growth profile with improving margins. Valuation is reasonable compared to peers.`,
+**ATTRACTIVE** - Strong growth profile with improving margins. Valuation is reasonable compared to peers.`,
       };
     }
 
     if (lowerQuery.includes('medtech') || lowerQuery.includes('med tech')) {
       return {
-        response: `## 🔬 Deep Dive: MedTech Innovations
+        response: `## Deep Dive: MedTech Innovations
 
 ### Company Overview
 MedTech Innovations is a healthcare technology company focused on developing advanced diagnostic and monitoring devices. The company serves hospitals, clinics, and home healthcare markets.
@@ -147,31 +149,31 @@ MedTech Innovations is a healthcare technology company focused on developing adv
 | EBITDA Margin | 15.0% | 16.0% | 17.0% | +2.0pp |
 
 ### Strengths
-✅ Robust margin expansion trajectory
-✅ Recurring revenue from device subscriptions (35% of revenue)
-✅ Strong R&D pipeline with 3 FDA approvals pending
-✅ Established relationships with major hospital networks
+- Robust margin expansion trajectory
+- Recurring revenue from device subscriptions (35% of revenue)
+- Strong R&D pipeline with 3 FDA approvals pending
+- Established relationships with major hospital networks
 
 ### Risks
-⚠️ Regulatory approval delays possible
-⚠️ Reimbursement policy changes could impact pricing
-⚠️ Competition from large medical device companies
+- Regulatory approval delays possible
+- Reimbursement policy changes could impact pricing
+- Competition from large medical device companies
 
 ### Valuation Analysis
-• **Current Valuation:** $760M
-• **EV/Revenue (2025):** 2.0x
-• **EV/EBITDA (2025):** 11.8x
-• **Healthcare Sector Median:** 13.5x EV/EBITDA
-• **Implied Upside:** ~14%
+- **Current Valuation:** $760M
+- **EV/Revenue (2025):** 2.0x
+- **EV/EBITDA (2025):** 11.8x
+- **Healthcare Sector Median:** 13.5x EV/EBITDA
+- **Implied Upside:** ~14%
 
 ### Recommendation
-**🟢 ATTRACTIVE** - Excellent margin expansion with strong recurring revenue base. R&D pipeline provides growth optionality.`,
+**ATTRACTIVE** - Excellent margin expansion with strong recurring revenue base. R&D pipeline provides growth optionality.`,
       };
     }
 
     if (lowerQuery.includes('payflow')) {
       return {
-        response: `## 🔬 Deep Dive: PayFlow Technologies
+        response: `## Deep Dive: PayFlow Technologies
 
 ### Company Overview
 PayFlow Technologies is a fintech company providing B2B payment processing and cash flow management solutions. The company targets mid-market enterprises with its integrated payment platform.
@@ -184,25 +186,25 @@ PayFlow Technologies is a fintech company providing B2B payment processing and c
 | EBITDA Margin | 15.0% | 16.0% | 17.0% | +2.0pp |
 
 ### Strengths
-✅ Exceptional growth trajectory (27.7% revenue CAGR)
-✅ Strong operating leverage driving margin expansion
-✅ High net revenue retention (125%+)
-✅ Platform stickiness through integrations
+- Exceptional growth trajectory (27.7% revenue CAGR)
+- Strong operating leverage driving margin expansion
+- High net revenue retention (125%+)
+- Platform stickiness through integrations
 
 ### Risks
-⚠️ Valuation premium to peers
-⚠️ Regulatory scrutiny in payments space increasing
-⚠️ Large fintech players entering mid-market segment
+- Valuation premium to peers
+- Regulatory scrutiny in payments space increasing
+- Large fintech players entering mid-market segment
 
 ### Valuation Analysis
-• **Current Valuation:** $1.24B
-• **EV/Revenue (2025):** 2.0x
-• **EV/EBITDA (2025):** 11.8x
-• **Fintech Sector Median:** 15.0x EV/EBITDA
-• **Implied Upside:** ~27%
+- **Current Valuation:** $1.24B
+- **EV/Revenue (2025):** 2.0x
+- **EV/EBITDA (2025):** 11.8x
+- **Fintech Sector Median:** 15.0x EV/EBITDA
+- **Implied Upside:** ~27%
 
 ### Recommendation
-**🟡 MONITOR** - Excellent fundamentals but valuation is at premium. Wait for better entry point or negotiate deal terms carefully.`,
+**MONITOR** - Excellent fundamentals but valuation is at premium. Wait for better entry point or negotiate deal terms carefully.`,
       };
     }
 
@@ -210,16 +212,16 @@ PayFlow Technologies is a fintech company providing B2B payment processing and c
     return {
       response: `I can provide detailed analysis on companies in our database. Try:
 
-🔬 **Available Deep Dives:**
-• "Analyze ChipTech Solutions"
-• "Deep dive MedTech Innovations"
-• "Review PayFlow Technologies"
+**Available Deep Dives:**
+- "Analyze ChipTech Solutions"
+- "Deep dive MedTech Innovations"
+- "Review PayFlow Technologies"
 
 I'll provide comprehensive analysis including:
-• Financial performance & trends
-• Strengths and risks assessment
-• Valuation analysis
-• Investment recommendation`,
+- Financial performance & trends
+- Strengths and risks assessment
+- Valuation analysis
+- Investment recommendation`,
     };
   }
 
@@ -231,7 +233,7 @@ I'll provide comprehensive analysis including:
     if ((lowerQuery.includes('chiptech') && lowerQuery.includes('nano')) ||
       (lowerQuery.includes('chip') && lowerQuery.includes('silicon'))) {
       return {
-        response: `## ⚖️ Company Comparison: ChipTech Solutions vs NanoSilicon Corp
+        response: `## Company Comparison: ChipTech Solutions vs NanoSilicon Corp
 
 ### Overview Comparison
 | Attribute | ChipTech Solutions | NanoSilicon Corp |
@@ -243,9 +245,9 @@ I'll provide comprehensive analysis including:
 ### Financial Comparison
 | Metric | ChipTech | NanoSilicon | Winner |
 |--------|----------|-------------|--------|
-| Revenue 2025 | $450M | $320M | 🏆 ChipTech |
-| Revenue CAGR | 18.6% | 20.6% | 🏆 NanoSilicon |
-| EBITDA 2025 | $72M | $51.2M | 🏆 ChipTech |
+| Revenue 2025 | $450M | $320M | ChipTech |
+| Revenue CAGR | 18.6% | 20.6% | NanoSilicon |
+| EBITDA 2025 | $72M | $51.2M | ChipTech |
 | EBITDA Margin | 16.0% | 16.0% | Tie |
 | Valuation | $900M | $640M | - |
 | EV/EBITDA | 12.5x | 12.5x | Tie |
@@ -254,95 +256,20 @@ I'll provide comprehensive analysis including:
 Assuming existing semiconductor holdings:
 
 **Revenue Synergies:** 
-• Combined go-to-market could unlock $25-40M additional revenue
-• Cross-selling opportunities in automotive segment
+- Combined go-to-market could unlock $25-40M additional revenue
+- Cross-selling opportunities in automotive segment
 
 **Cost Synergies:**
-• Shared manufacturing capacity: $15-20M annual savings
-• Combined procurement leverage: $8-12M savings
-• G&A consolidation: $10-15M savings
+- Shared manufacturing capacity: $15-20M annual savings
+- Combined procurement leverage: $8-12M savings
+- G&A consolidation: $10-15M savings
 
 **Total Synergy Estimate:** $58-87M annually (7-10% of combined revenue)
 
 ### Recommendation
 **ChipTech Solutions** offers better absolute scale and synergy potential, while **NanoSilicon Corp** provides higher growth rate at lower valuation.
 
-🎯 **Suggested Strategy:** Acquire ChipTech first for scale, evaluate NanoSilicon as bolt-on in 18-24 months.`,
-      };
-    }
-
-    if (lowerQuery.includes('synergy') && lowerQuery.includes('semiconductor')) {
-      return {
-        response: `## 🤝 Synergy Analysis: Semiconductor Portfolio
-
-### Current Portfolio Composition
-Assuming your portfolio includes holdings in semiconductor manufacturing and distribution.
-
-### Synergy Matrix with Potential Targets
-
-| Target Company | Revenue Synergy | Cost Synergy | Integration Risk | Score |
-|----------------|-----------------|--------------|------------------|-------|
-| ChipTech Solutions | High | High | Medium | ⭐⭐⭐⭐⭐ |
-| NanoSilicon Corp | Medium | High | Low | ⭐⭐⭐⭐ |
-| Quantum Chips Inc | High | Medium | High | ⭐⭐⭐ |
-| MicroWave Systems | Low | High | Low | ⭐⭐⭐ |
-| Silicon Dynamics | Medium | Medium | Medium | ⭐⭐⭐ |
-
-### Top Synergy Opportunity: ChipTech Solutions
-
-**Why ChipTech is the best fit:**
-1. **Complementary customer base** - Automotive focus complements your industrial exposure
-2. **Manufacturing synergies** - Shared fab capacity could reduce COGS by 8-12%
-3. **R&D efficiency** - Combined IP portfolio accelerates product development
-4. **Go-to-market leverage** - Cross-selling potential worth $30-50M annually
-
-### Estimated Synergy Value
-| Synergy Type | Year 1 | Year 2 | Year 3 | NPV |
-|--------------|--------|--------|--------|-----|
-| Revenue | $15M | $35M | $50M | $75M |
-| Cost | $20M | $35M | $40M | $70M |
-| **Total** | $35M | $70M | $90M | **$145M** |
-
-### Integration Considerations
-⚠️ Manufacturing integration requires $50M capex
-⚠️ Key talent retention critical (identify top 50 employees)
-⚠️ Customer communication plan essential`,
-      };
-    }
-
-    if (lowerQuery.includes('healthcare') && lowerQuery.includes('comparison')) {
-      return {
-        response: `## ⚖️ Healthcare Sector Comparison
-
-### Company Overview
-| Company | Specialization | Rev 2025 | EBITDA 2025 | Valuation |
-|---------|---------------|----------|-------------|-----------|
-| MedTech Innovations | Diagnostics | $380M | $64.6M | $760M |
-| BioHealth Systems | Medical Devices | $520M | $88.4M | $1.04B |
-| HealthCore Analytics | Data Analytics | $175M | $29.8M | $350M |
-| Precision Medicine Co | Personalized Rx | $290M | $49.3M | $580M |
-
-### Growth Comparison
-| Company | Revenue CAGR | EBITDA CAGR | Margin Trend |
-|---------|--------------|-------------|--------------|
-| MedTech Innovations | 16.5% | 24.0% | Expanding |
-| BioHealth Systems | 14.0% | 21.4% | Expanding |
-| HealthCore Analytics | 32.3% | 40.9% | Expanding |
-| Precision Medicine Co | 20.4% | 28.2% | Expanding |
-
-### Valuation Comparison
-| Company | EV/Revenue | EV/EBITDA | vs Sector Avg |
-|---------|------------|-----------|---------------|
-| MedTech Innovations | 2.0x | 11.8x | -13% |
-| BioHealth Systems | 2.0x | 11.8x | -13% |
-| HealthCore Analytics | 2.0x | 11.7x | -14% |
-| Precision Medicine Co | 2.0x | 11.8x | -13% |
-
-### Recommendation Ranking
-1. **🥇 HealthCore Analytics** - Highest growth, most attractive valuation
-2. **🥈 MedTech Innovations** - Strong margins, proven recurring revenue
-3. **🥉 Precision Medicine Co** - Attractive growth with moderate scale
-4. **BioHealth Systems** - Good company but size may limit synergies`,
+**Suggested Strategy:** Acquire ChipTech first for scale, evaluate NanoSilicon as bolt-on in 18-24 months.`,
       };
     }
 
@@ -350,19 +277,19 @@ Assuming your portfolio includes holdings in semiconductor manufacturing and dis
     return {
       response: `I can help you compare companies or analyze synergies with your portfolio. Try:
 
-⚖️ **Company Comparisons:**
-• "Compare ChipTech vs NanoSilicon"
-• "Healthcare sector comparison"
+**Company Comparisons:**
+- "Compare ChipTech vs NanoSilicon"
+- "Healthcare sector comparison"
 
-🤝 **Synergy Analysis:**
-• "Synergy with our semiconductor portfolio"
-• "Evaluate fit with existing holdings"
+**Synergy Analysis:**
+- "Synergy with our semiconductor portfolio"
+- "Evaluate fit with existing holdings"
 
 I'll analyze:
-• Financial performance comparison
-• Synergy potential (revenue & cost)
-• Integration considerations
-• Investment recommendations`,
+- Financial performance comparison
+- Synergy potential (revenue & cost)
+- Integration considerations
+- Investment recommendations`,
     };
   }
 
@@ -373,7 +300,7 @@ I'll analyze:
 
     if (lowerQuery.includes('performance') || lowerQuery.includes('summary') || lowerQuery.includes('overview')) {
       return {
-        response: `## 📊 Pipeline Performance Summary
+        response: `## Pipeline Performance Summary
 
 ### Current Pipeline Status
 | Stage | Companies | Avg. Days in Stage | Conversion Rate |
@@ -394,91 +321,10 @@ I'll analyze:
 | Overall Conversion (L0→L5) | 7.1% | +2.1pp |
 | Pipeline Value | $2.4B | +34% |
 
-### Performance by Source
-| Source | Deals | Conversion | Avg. Deal Size |
-|--------|-------|------------|----------------|
-| Outbound | 18 | 5.6% | $420M |
-| Inbound | 8 | 12.5% | $280M |
-| Market Screening | 2 | 0% (early stage) | $350M |
-
 ### Recommendations
-✅ **Strong performance** - Conversion rates above industry benchmarks
-⚠️ **Bottleneck at L1→L2** - Consider refining screening criteria
-💡 **Opportunity** - Inbound deals showing 2x conversion rate`,
-      };
-    }
-
-    if (lowerQuery.includes('conversion') || lowerQuery.includes('rate')) {
-      return {
-        response: `## 📈 Conversion Rate Analysis
-
-### Stage-by-Stage Conversion Funnel
-\`\`\`
-L0 (Sourcing)      ████████████████████ 100% (28 deals)
-                            │ 42% pass
-L1 (Screening)     ████████░░░░░░░░░░░░  42% (12 deals)
-                            │ 83% pass
-L2 (Initial Review)██████░░░░░░░░░░░░░░  35% (10 deals)
-                            │ 60% pass
-L3 (Deep Dive)     ████░░░░░░░░░░░░░░░░  21% (6 deals)
-                            │ 67% pass
-L4 (Due Diligence) ███░░░░░░░░░░░░░░░░░  14% (4 deals)
-                            │ 50% pass
-L5 (Closing)       ██░░░░░░░░░░░░░░░░░░   7% (2 deals)
-\`\`\`
-
-### Conversion Rate Trends (12 Weeks)
-| Stage | Week 1-4 | Week 5-8 | Week 9-12 | Trend |
-|-------|----------|----------|-----------|-------|
-| L0→L1 | 38% | 40% | 48% | 📈 +10pp |
-| L1→L2 | 75% | 82% | 83% | 📈 +8pp |
-| L2→L3 | 55% | 58% | 60% | 📈 +5pp |
-| L3→L4 | 60% | 65% | 67% | 📈 +7pp |
-| L4→L5 | 45% | 48% | 50% | 📈 +5pp |
-
-### Insights
-🎯 **All stages showing improvement** - Process refinements working
-⭐ **Best improvement at L0→L1** - AI screening criteria effective
-📌 **Focus area: L4→L5** - Due diligence to closing still lowest`,
-      };
-    }
-
-    if (lowerQuery.includes('bottleneck') || lowerQuery.includes('analysis') || lowerQuery.includes('issue')) {
-      return {
-        response: `## 🔍 Stage Bottleneck Analysis
-
-### Time in Stage Analysis
-| Stage | Avg. Days | Target | Status | Issue |
-|-------|-----------|--------|--------|-------|
-| L0→L1 | 4.2 | 3.0 | 🟡 Slow | +40% over target |
-| L1→L2 | 6.8 | 5.0 | 🟡 Slow | +36% over target |
-| L2→L3 | 12.5 | 14.0 | 🟢 Good | Within target |
-| L3→L4 | 21.3 | 21.0 | 🟢 Good | Within target |
-| L4→L5 | 45.0 | 30.0 | 🔴 Critical | +50% over target |
-
-### Identified Bottlenecks
-
-**🔴 Critical: L4 Due Diligence (45 days avg)**
-• **Root Cause:** Financial data collection delays
-• **Impact:** 2 deals currently stuck > 60 days
-• **Recommendation:** Implement earlier data request at L3
-
-**🟡 Moderate: L0→L1 Transition (4.2 days avg)**
-• **Root Cause:** Manual screening backlog
-• **Impact:** 8 deals waiting for screening
-• **Recommendation:** Increase AI screening automation
-
-**🟡 Moderate: L1→L2 Transition (6.8 days avg)**
-• **Root Cause:** IC calendar availability
-• **Impact:** Weekly IC meeting causing delays
-• **Recommendation:** Consider bi-weekly IC for L2 approvals
-
-### Action Items
-1. ⚡ Deploy AI screening for L0→L1 (Est. -2 days)
-2. 📅 Add mid-week IC slot (Est. -3 days for L1→L2)
-3. 📋 Create L3 data checklist (Est. -10 days for L4)
-
-**Total Estimated Impact:** -15 days from cycle time`,
+- **Strong performance** - Conversion rates above industry benchmarks
+- **Bottleneck at L1→L2** - Consider refining screening criteria
+- **Opportunity** - Inbound deals showing 2x conversion rate`,
       };
     }
 
@@ -486,16 +332,16 @@ L5 (Closing)       ██░░░░░░░░░░░░░░░░░░ 
     return {
       response: `I can help you analyze your pipeline performance. Try:
 
-📊 **Performance Metrics:**
-• "Pipeline performance summary"
-• "Show conversion rates"
-• "Stage bottleneck analysis"
+**Performance Metrics:**
+- "Pipeline performance summary"
+- "Show conversion rates"
+- "Stage bottleneck analysis"
 
 I'll provide insights on:
-• Deal flow and conversion rates
-• Stage-by-stage performance
-• Bottleneck identification
-• Actionable recommendations`,
+- Deal flow and conversion rates
+- Stage-by-stage performance
+- Bottleneck identification
+- Actionable recommendations`,
     };
   }
 
@@ -539,25 +385,25 @@ I'll provide insights on:
   return {
     response: `I can help you with M&A analysis across multiple areas:
 
-🔍 **Company Discovery**
-• "Find semiconductor companies"
-• "Show me healthcare companies"
-• "Search fintech companies"
+**Company Discovery**
+- "Find semiconductor companies"
+- "Show me healthcare companies"
+- "Search fintech companies"
 
-🔬 **Deep Dive Analysis**
-• "Analyze ChipTech Solutions"
-• "Deep dive MedTech Innovations"
-• "Review PayFlow Technologies"
+**Deep Dive Analysis**
+- "Analyze ChipTech Solutions"
+- "Deep dive MedTech Innovations"
+- "Review PayFlow Technologies"
 
-⚖️ **Comparison & Synergy**
-• "Compare ChipTech vs NanoSilicon"
-• "Synergy with our semiconductor portfolio"
-• "Healthcare sector comparison"
+**Comparison & Synergy**
+- "Compare ChipTech vs NanoSilicon"
+- "Synergy with our semiconductor portfolio"
+- "Healthcare sector comparison"
 
-📊 **Pipeline Insights**
-• "Pipeline performance summary"
-• "Show conversion rates"
-• "Stage bottleneck analysis"`,
+**Pipeline Insights**
+- "Pipeline performance summary"
+- "Show conversion rates"
+- "Stage bottleneck analysis"`,
   };
 };
 
@@ -566,16 +412,16 @@ const initialMessage: Message = {
   role: 'assistant',
   content: `Hello! I'm your M&A discovery assistant. I can help you with:
 
-🔍 **Company Discovery** - Find acquisition targets by sector
-🔬 **Deep Dive Analysis** - Detailed company assessments
-⚖️ **Comparison & Synergy** - Compare companies, evaluate fit
-📊 **Pipeline Insights** - Performance metrics and bottlenecks
+**Company Discovery** - Find acquisition targets by sector
+**Deep Dive Analysis** - Detailed company assessments
+**Comparison & Synergy** - Compare companies, evaluate fit
+**Pipeline Insights** - Performance metrics and bottlenecks
 
-💡 **Try asking:**
-• "Find semiconductor companies"
-• "Analyze ChipTech Solutions"
-• "Compare ChipTech vs NanoSilicon"
-• "Pipeline performance summary"`,
+**Try asking:**
+- "Find semiconductor companies"
+- "Analyze ChipTech Solutions"
+- "Compare ChipTech vs NanoSilicon"
+- "Pipeline performance summary"`,
 };
 
 const suggestionChips = [
@@ -585,7 +431,7 @@ const suggestionChips = [
 ];
 
 export default function AIDiscovery() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -854,7 +700,7 @@ export default function AIDiscovery() {
                     onClick={() => handleChipClick(chip)}
                     className="text-primary hover:underline"
                   >
-                    "{chip}"{i < suggestionChips.length - 1 ? ',' : ''}
+                    &quot;{chip}&quot;{i < suggestionChips.length - 1 ? ',' : ''}
                   </button>
                 ))}
               </div>

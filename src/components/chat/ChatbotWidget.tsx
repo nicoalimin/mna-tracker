@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -281,7 +283,7 @@ For company discovery with data tables, use the full AI Discovery page (click â†
 };
 
 export function ChatbotWidget() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -345,7 +347,7 @@ For company discovery tables, click â†— to open AI Discovery.`,
 
   const handleExpand = () => {
     setIsOpen(false);
-    navigate('/ai-discovery');
+    router.push('/ai-discovery');
   };
 
   if (!isOpen) {
