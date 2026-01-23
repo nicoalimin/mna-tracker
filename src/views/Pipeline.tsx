@@ -66,9 +66,12 @@ interface PipelineCompany {
   id: string;
   target: string;
   segment: string;
+  watchlist_status: string | null;
+  revenue_2021_usd_mn: number | null;
   revenue_2022_usd_mn: number | null;
   revenue_2023_usd_mn: number | null;
   revenue_2024_usd_mn: number | null;
+  ebitda_2021_usd_mn: number | null;
   ebitda_2022_usd_mn: number | null;
   ebitda_2023_usd_mn: number | null;
   ebitda_2024_usd_mn: number | null;
@@ -193,9 +196,12 @@ export default function Pipeline() {
           id,
           target,
           segment,
+          watchlist_status,
+          revenue_2021_usd_mn,
           revenue_2022_usd_mn,
           revenue_2023_usd_mn,
           revenue_2024_usd_mn,
+          ebitda_2021_usd_mn,
           ebitda_2022_usd_mn,
           ebitda_2023_usd_mn,
           ebitda_2024_usd_mn,
@@ -214,9 +220,12 @@ export default function Pipeline() {
         id: company.id,
         target: company.target || '',
         segment: company.segment || '',
+        watchlist_status: company.watchlist_status,
+        revenue_2021_usd_mn: company.revenue_2021_usd_mn,
         revenue_2022_usd_mn: company.revenue_2022_usd_mn,
         revenue_2023_usd_mn: company.revenue_2023_usd_mn,
         revenue_2024_usd_mn: company.revenue_2024_usd_mn,
+        ebitda_2021_usd_mn: company.ebitda_2021_usd_mn,
         ebitda_2022_usd_mn: company.ebitda_2022_usd_mn,
         ebitda_2023_usd_mn: company.ebitda_2023_usd_mn,
         ebitda_2024_usd_mn: company.ebitda_2024_usd_mn,
@@ -241,7 +250,7 @@ export default function Pipeline() {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { count, error } = await supabase
+      const { count, error } = await (supabase as any)
         .from('market_screening_results')
         .select('*', { count: 'exact', head: true })
         .eq('is_added_to_pipeline', false)
@@ -335,7 +344,7 @@ export default function Pipeline() {
 
   const runL1Filters = async (dealId: string) => {
     try {
-      const { data, error } = await supabase.rpc('run_l1_filters', { deal_id_param: dealId });
+      const { data, error } = await (supabase as any).rpc('run_l1_filters', { deal_id_param: dealId });
       if (error) throw error;
       const result = data as { status: string } | null;
       toast.success(`Filter completed: ${result?.status || 'Unknown'}`);

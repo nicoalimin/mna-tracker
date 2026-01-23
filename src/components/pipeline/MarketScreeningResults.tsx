@@ -45,7 +45,7 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
 
   const fetchResults = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('market_screening_results')
         .select('*')
         .eq('is_added_to_pipeline', false)
@@ -123,10 +123,10 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
         });
 
         // Mark as added
-        await supabase
-          .from('market_screening_results')
-          .update({ is_added_to_pipeline: true })
-          .eq('id', result.id);
+      await (supabase as any)
+        .from('market_screening_results')
+        .update({ is_added_to_pipeline: true })
+        .eq('id', result.id);
       }
 
       toast.success(`Added ${selectedResults.length} companies to L0`);
@@ -160,7 +160,7 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
 
   const dismissResult = async (id: string) => {
     try {
-      await supabase
+      await (supabase as any)
         .from('market_screening_results')
         .delete()
         .eq('id', id);

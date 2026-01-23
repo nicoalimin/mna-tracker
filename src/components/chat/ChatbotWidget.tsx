@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
-import { Bot, Send, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Bot, Send, X, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
@@ -16,6 +16,46 @@ interface Message {
   content: string;
   redirectToDiscovery?: boolean;
 }
+
+interface ChatbotState {
+  isOpen: boolean;
+  isMinimized: boolean;
+  messages: Message[];
+}
+
+const STORAGE_KEY = 'mna-chatbot-state';
+
+const defaultMessages: Message[] = [
+  {
+    id: '1',
+    role: 'assistant',
+    content: `Hi! I'm your M&A assistant. I can help you navigate the app.
+
+For company search and analysis, click ↗ to open AI Discovery.
+
+Your data is pulled from Supabase - import companies via Master Data.`,
+  },
+];
+
+const saveChatState = (state: ChatbotState) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Failed to save chatbot state to localStorage:', error);
+  }
+};
+
+const loadChatState = (): ChatbotState | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.warn('Failed to load chatbot state from localStorage:', error);
+    return null;
+  }
+};
 
 // Simple response handler - redirects complex queries to AI Discovery
 const getResponse = (query: string): { response: string; redirectToDiscovery?: boolean } => {
@@ -61,22 +101,30 @@ Your data is stored in Supabase. Import companies through the Master Data page.`
 
 export function ChatbotWidget() {
   const router = useRouter();
+
+  // Initialize with defaults, load from localStorage after mount
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: `Hi! I'm your M&A assistant. I can help you navigate the app.
-
-For company search and analysis, click ↗ to open AI Discovery.
-
-Your data is pulled from Supabase - import companies via Master Data.`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(defaultMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load initial state from localStorage after component mounts
+  useEffect(() => {
+    const initialState = loadChatState();
+    if (initialState) {
+      setIsOpen(initialState.isOpen);
+      setIsMinimized(initialState.isMinimized);
+      setMessages(initialState.messages);
+    }
+  }, []);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    const state: ChatbotState = { isOpen, isMinimized, messages };
+    saveChatState(state);
+  }, [isOpen, isMinimized, messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -125,6 +173,12 @@ Your data is pulled from Supabase - import companies via Master Data.`,
     router.push('/ai-discovery');
   };
 
+  const handleClear = useCallback(() => {
+    setMessages(defaultMessages);
+    setInput('');
+    setIsTyping(false);
+  }, []);
+
   if (!isOpen) {
     return (
       <Button
@@ -157,6 +211,15 @@ Your data is pulled from Supabase - import companies via Master Data.`,
             title="Open full AI Discovery"
           >
             <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+            onClick={handleClear}
+            title="Clear conversation"
+          >
+            <RotateCcw className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"

@@ -54,7 +54,7 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
 
   const fetchThesis = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('investment_thesis')
         .select('*')
         .eq('is_active', true)
@@ -93,7 +93,7 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
 
       if (thesis) {
         // Update existing thesis
-        const { error } = await supabase
+        const { error } =         await (supabase as any)
           .from('investment_thesis')
           .update({
             title: thesisTitle,
@@ -116,7 +116,7 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
           nextScan.setMonth(nextScan.getMonth() + 1);
         }
 
-        const { data, error } = await supabase
+        const { data, error } =         await (supabase as any)
           .from('investment_thesis')
           .insert({
             title: thesisTitle || 'Default Thesis',
