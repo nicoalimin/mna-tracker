@@ -30,123 +30,67 @@ import {
   ChevronRight,
   Database,
 } from 'lucide-react';
-import type { DealStage, L1Status } from '@/lib/types';
 import CompanyDetailDialog from '@/components/pipeline/CompanyDetailDialog';
 
-interface StageCount {
-  stage: DealStage;
-  count: number;
-  inbound?: number;
-  outbound?: number;
-}
-
-interface RecentDeal {
+interface CompanyData {
   id: string;
-  company_name: string;
-  current_stage: DealStage;
-  source: string;
-  updated_at: string;
-}
-
-interface CompanyMetric {
-  id: string;
-  company_id: string;
-  name: string;
-  sector: string;
-  source: string;
-  revenue_year1: number | null;
-  revenue_year2: number | null;
-  revenue_year3: number | null;
-  ebitda_year1: number | null;
-  ebitda_year2: number | null;
-  ebitda_year3: number | null;
-  valuation: number | null;
-  current_stage: DealStage;
-  l1_status: L1Status | null;
-  l1_filter_results: any;
+  target: string | null;
+  segment: string | null;
+  watchlist_status: string | null;
+  revenue_2021_usd_mn: number | null;
+  revenue_2022_usd_mn: number | null;
+  revenue_2023_usd_mn: number | null;
+  revenue_2024_usd_mn: number | null;
+  ebitda_2021_usd_mn: number | null;
+  ebitda_2022_usd_mn: number | null;
+  ebitda_2023_usd_mn: number | null;
+  ebitda_2024_usd_mn: number | null;
+  ev_2024: number | null;
+  l1_screening_result: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const stageLabels: Record<DealStage, string> = {
-  L0: 'Sourcing',
-  L1: 'Screening',
-  L2: 'Initial Review',
-  L3: 'Due Diligence',
-  L4: 'Negotiation',
-  L5: 'Closing',
+const statusColors: Record<string, string> = {
+  pass: 'bg-green-500',
+  fail: 'bg-red-500',
+  pending: 'bg-yellow-500',
+  default: 'bg-gray-500',
 };
 
-const stageColors: Record<DealStage, string> = {
-  L0: 'bg-stage-l0',
-  L1: 'bg-stage-l1',
-  L2: 'bg-stage-l2',
-  L3: 'bg-stage-l3',
-  L4: 'bg-stage-l4',
-  L5: 'bg-stage-l5',
+const getStatusColor = (status: string | null): string => {
+  if (!status) return statusColors.default;
+  const lower = status.toLowerCase();
+  return statusColors[lower] || statusColors.default;
 };
 
+// Values in database are in USD Millions, so format accordingly
 const formatCurrency = (value: number | null): string => {
   if (value === null || value === undefined) return '-';
-  if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)}B`;
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-  return `$${value.toFixed(0)}`;
+  // Values are already in millions
+  if (value >= 1000) return `$${(value / 1000).toFixed(1)}B`;
+  return `$${value.toFixed(1)}M`;
 };
 
-const getRevenueChange = (year2: number | null, year3: number | null): { direction: 'up' | 'down' | 'flat'; percent: number } => {
-  if (!year2 || !year3) return { direction: 'flat', percent: 0 };
-  const change = ((year3 - year2) / year2) * 100;
+const getRevenueChange = (year2023: number | null, year2024: number | null): { direction: 'up' | 'down' | 'flat'; percent: number } => {
+  if (!year2023 || !year2024) return { direction: 'flat', percent: 0 };
+  const change = ((year2024 - year2023) / year2023) * 100;
   if (change > 1) return { direction: 'up', percent: change };
   if (change < -1) return { direction: 'down', percent: Math.abs(change) };
   return { direction: 'flat', percent: 0 };
 };
 
-// Mock data for preview
-const mockStageCounts: StageCount[] = [
-  { stage: 'L0', count: 24, inbound: 14, outbound: 10 },
-  { stage: 'L1', count: 18, inbound: 10, outbound: 8 },
-  { stage: 'L2', count: 12, inbound: 7, outbound: 5 },
-  { stage: 'L3', count: 8, inbound: 5, outbound: 3 },
-  { stage: 'L4', count: 5, inbound: 3, outbound: 2 },
-  { stage: 'L5', count: 3, inbound: 2, outbound: 1 },
-];
-
-const mockRecentDeals: RecentDeal[] = [
-  { id: '1', company_name: 'TechFlow Analytics', current_stage: 'L3', source: 'outbound', updated_at: new Date().toISOString() },
-  { id: '2', company_name: 'DataSphere Inc', current_stage: 'L2', source: 'inbound', updated_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: '3', company_name: 'CloudNine Solutions', current_stage: 'L4', source: 'inbound', updated_at: new Date(Date.now() - 172800000).toISOString() },
-  { id: '4', company_name: 'QuantumLeap AI', current_stage: 'L1', source: 'outbound', updated_at: new Date(Date.now() - 259200000).toISOString() },
-  { id: '5', company_name: 'NexGen Robotics', current_stage: 'L2', source: 'inbound', updated_at: new Date(Date.now() - 345600000).toISOString() },
-];
-
-const mockCompanyMetrics: CompanyMetric[] = [
-  { id: '1', company_id: 'c1', name: 'TechFlow Analytics', sector: 'Enterprise Software', source: 'outbound', revenue_year1: 45000000, revenue_year2: 58000000, revenue_year3: 72000000, ebitda_year1: 9000000, ebitda_year2: 12000000, ebitda_year3: 15000000, valuation: 280000000, current_stage: 'L3', l1_status: 'Pass', l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '2', company_id: 'c2', name: 'DataSphere Inc', sector: 'Data Analytics', source: 'inbound', revenue_year1: 32000000, revenue_year2: 41000000, revenue_year3: 53000000, ebitda_year1: 6400000, ebitda_year2: 8200000, ebitda_year3: 10600000, valuation: 195000000, current_stage: 'L2', l1_status: 'Pass', l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '3', company_id: 'c3', name: 'CloudNine Solutions', sector: 'Cloud Infrastructure', source: 'inbound', revenue_year1: 89000000, revenue_year2: 112000000, revenue_year3: 145000000, ebitda_year1: 17800000, ebitda_year2: 22400000, ebitda_year3: 29000000, valuation: 520000000, current_stage: 'L4', l1_status: 'Pass', l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '4', company_id: 'c4', name: 'QuantumLeap AI', sector: 'Artificial Intelligence', source: 'outbound', revenue_year1: 18000000, revenue_year2: 28000000, revenue_year3: 42000000, ebitda_year1: 3600000, ebitda_year2: 5600000, ebitda_year3: 8400000, valuation: 165000000, current_stage: 'L1', l1_status: null, l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '5', company_id: 'c5', name: 'NexGen Robotics', sector: 'Industrial Automation', source: 'inbound', revenue_year1: 67000000, revenue_year2: 78000000, revenue_year3: 91000000, ebitda_year1: 13400000, ebitda_year2: 15600000, ebitda_year3: 18200000, valuation: 340000000, current_stage: 'L2', l1_status: 'Pass', l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '6', company_id: 'c6', name: 'FinStack Technologies', sector: 'Fintech', source: 'outbound', revenue_year1: 23000000, revenue_year2: 35000000, revenue_year3: 48000000, ebitda_year1: 4600000, ebitda_year2: 7000000, ebitda_year3: 9600000, valuation: 180000000, current_stage: 'L1', l1_status: null, l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '7', company_id: 'c7', name: 'SecureNet Cyber', sector: 'Cybersecurity', source: 'inbound', revenue_year1: 56000000, revenue_year2: 68000000, revenue_year3: 82000000, ebitda_year1: 11200000, ebitda_year2: 13600000, ebitda_year3: 16400000, valuation: 305000000, current_stage: 'L3', l1_status: 'Pass', l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: '8', company_id: 'c8', name: 'HealthBridge Systems', sector: 'Healthcare IT', source: 'inbound', revenue_year1: 38000000, revenue_year2: 44000000, revenue_year3: 51000000, ebitda_year1: 7600000, ebitda_year2: 8800000, ebitda_year3: 10200000, valuation: 190000000, current_stage: 'L2', l1_status: 'Pass', l1_filter_results: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-];
 
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [stageCounts, setStageCounts] = useState<StageCount[]>([]);
-  const [totalDeals, setTotalDeals] = useState(0);
-  const [recentDeals, setRecentDeals] = useState<RecentDeal[]>([]);
-  const [sourceBreakdown, setSourceBreakdown] = useState({ inbound: 0, outbound: 0 });
-  const [companyMetrics, setCompanyMetrics] = useState<CompanyMetric[]>([]);
+  const [companies, setCompanies] = useState<CompanyData[]>([]);
+  const [totalCompanies, setTotalCompanies] = useState(0);
+  const [segmentCounts, setSegmentCounts] = useState<{ segment: string; count: number }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedCompany, setSelectedCompany] = useState<CompanyMetric | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyData | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const itemsPerPage = 5;
-
-  const handleStageClick = (stage: DealStage) => {
-    router.push(`/pipeline?stage=${stage}`);
-  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -154,131 +98,64 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch all deals with company info
-      const { data: deals, error } = await supabase
-        .from('deals')
+      // Fetch all companies
+      const { data: companiesData, error } = await supabase
+        .from('companies')
         .select(`
           id,
-          current_stage,
-          updated_at,
-          company:companies (
-            id,
-            name,
-            sector,
-            source,
-            revenue_year1,
-            revenue_year2,
-            revenue_year3,
-            ebitda_year1,
-            ebitda_year2,
-            ebitda_year3,
-            valuation
-          )
+          target,
+          segment,
+          watchlist_status,
+          revenue_2021_usd_mn,
+          revenue_2022_usd_mn,
+          revenue_2023_usd_mn,
+          revenue_2024_usd_mn,
+          ebitda_2021_usd_mn,
+          ebitda_2022_usd_mn,
+          ebitda_2023_usd_mn,
+          ebitda_2024_usd_mn,
+          ev_2024,
+          l1_screening_result,
+          created_at,
+          updated_at
         `)
-        .eq('is_active', true)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
 
-      // If no real data, use mock data for preview
-      if (!deals || deals.length === 0) {
-        setStageCounts(mockStageCounts);
-        setTotalDeals(70);
-        setSourceBreakdown({ inbound: 41, outbound: 29 });
-        setRecentDeals(mockRecentDeals);
-        setCompanyMetrics(mockCompanyMetrics);
-        setLoading(false);
-        return;
-      }
+      if (companiesData) {
+        setCompanies(companiesData);
+        setTotalCompanies(companiesData.length);
 
-      if (deals) {
-        // Calculate stage counts with source breakdown for L0
-        const counts: Record<DealStage, { total: number; inbound: number; outbound: number }> = {
-          L0: { total: 0, inbound: 0, outbound: 0 },
-          L1: { total: 0, inbound: 0, outbound: 0 },
-          L2: { total: 0, inbound: 0, outbound: 0 },
-          L3: { total: 0, inbound: 0, outbound: 0 },
-          L4: { total: 0, inbound: 0, outbound: 0 },
-          L5: { total: 0, inbound: 0, outbound: 0 },
-        };
-        let inbound = 0;
-        let outbound = 0;
-
-        deals.forEach((deal: any) => {
-          const stage = deal.current_stage as DealStage;
-          counts[stage].total++;
-          if (deal.company?.source === 'inbound') {
-            inbound++;
-            counts[stage].inbound++;
-          } else if (deal.company?.source === 'outbound') {
-            outbound++;
-            counts[stage].outbound++;
-          }
+        // Calculate segment counts
+        const segmentMap = new Map<string, number>();
+        companiesData.forEach((company) => {
+          const segment = company.segment || 'Unknown';
+          segmentMap.set(segment, (segmentMap.get(segment) || 0) + 1);
         });
-
-        setStageCounts(
-          Object.entries(counts).map(([stage, data]) => ({
-            stage: stage as DealStage,
-            count: data.total,
-            inbound: data.inbound,
-            outbound: data.outbound,
-          }))
-        );
-
-        setTotalDeals(deals.length);
-        setSourceBreakdown({ inbound, outbound });
-
-        // Get recent deals
-        const recent = deals.slice(0, 5).map((deal: any) => ({
-          id: deal.id,
-          company_name: deal.company?.name || 'Unknown',
-          current_stage: deal.current_stage,
-          source: deal.company?.source || 'unknown',
-          updated_at: deal.updated_at,
-        }));
-        setRecentDeals(recent);
-
-        // Get company metrics for table
-        const metrics = deals.map((deal: any) => ({
-          id: deal.id,
-          company_id: deal.company?.id || '',
-          name: deal.company?.name || 'Unknown',
-          sector: deal.company?.sector || '',
-          source: deal.company?.source || 'unknown',
-          revenue_year1: deal.company?.revenue_year1,
-          revenue_year2: deal.company?.revenue_year2,
-          revenue_year3: deal.company?.revenue_year3,
-          ebitda_year1: deal.company?.ebitda_year1,
-          ebitda_year2: deal.company?.ebitda_year2,
-          ebitda_year3: deal.company?.ebitda_year3,
-          valuation: deal.company?.valuation,
-          current_stage: deal.current_stage as DealStage,
-          l1_status: deal.l1_status || null,
-          l1_filter_results: deal.l1_filter_results || null,
-          created_at: deal.created_at,
-          updated_at: deal.updated_at,
-        }));
-        setCompanyMetrics(metrics);
+        
+        const counts = Array.from(segmentMap.entries())
+          .map(([segment, count]) => ({ segment, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6); // Top 6 segments
+        setSegmentCounts(counts);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      // On error, also show mock data
-      setStageCounts(mockStageCounts);
-      setTotalDeals(70);
-      setSourceBreakdown({ inbound: 41, outbound: 29 });
-      setRecentDeals(mockRecentDeals);
-      setCompanyMetrics(mockCompanyMetrics);
     } finally {
       setLoading(false);
     }
   };
 
   // Pagination logic
-  const totalPages = Math.ceil(companyMetrics.length / itemsPerPage);
-  const paginatedMetrics = companyMetrics.slice(
+  const totalPages = Math.ceil(companies.length / itemsPerPage);
+  const paginatedCompanies = companies.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Get recent companies (last 5 updated)
+  const recentCompanies = companies.slice(0, 5);
 
   if (loading) {
     return (
@@ -300,113 +177,67 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Pipeline Funnel */}
+        {/* Segment Distribution */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Pipeline Stages
+              Companies by Segment
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end gap-4 justify-between" style={{ height: '280px' }}>
-              {stageCounts.map((item, index) => {
-                const maxCount = Math.max(...stageCounts.map(s => s.count), 1);
-                const l0Count = stageCounts.find(s => s.stage === 'L0')?.count || 1;
-                const conversionPercent = l0Count > 0 ? Math.round((item.count / l0Count) * 100) : 0;
+            {segmentCounts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p>No companies in database yet.</p>
+              </div>
+            ) : (
+              <div className="flex items-end gap-4 justify-between" style={{ height: '280px' }}>
+                {segmentCounts.map((item, index) => {
+                  const maxCount = Math.max(...segmentCounts.map(s => s.count), 1);
+                  const barMaxHeight = 180;
+                  const barHeight = Math.max((item.count / maxCount) * barMaxHeight, 40);
 
-                // Calculate bar height - max height is 180px
-                const barMaxHeight = 180;
-                const barHeight = Math.max((item.count / maxCount) * barMaxHeight, 40);
-
-                if (item.stage === 'L0') {
-                  const inboundRatio = item.count > 0 ? (item.inbound || 0) / item.count : 0.5;
-                  const outboundRatio = item.count > 0 ? (item.outbound || 0) / item.count : 0.5;
+                  const colors = [
+                    'bg-blue-500',
+                    'bg-green-500',
+                    'bg-purple-500',
+                    'bg-orange-500',
+                    'bg-pink-500',
+                    'bg-teal-500',
+                  ];
 
                   return (
                     <div
-                      key={item.stage}
-                      className="flex-1 flex flex-col items-center cursor-pointer group"
-                      onClick={() => handleStageClick(item.stage)}
+                      key={item.segment}
+                      className="flex-1 flex flex-col items-center group"
                     >
-                      {/* Count */}
                       <span className="text-2xl font-bold mb-1">{item.count}</span>
-                      {/* Conversion Badge */}
-                      <Badge variant="secondary" className="mb-3 text-xs bg-primary/10 text-primary">
-                        100%
+                      <Badge variant="secondary" className="mb-3 text-xs bg-muted text-muted-foreground">
+                        {totalCompanies > 0 ? Math.round((item.count / totalCompanies) * 100) : 0}%
                       </Badge>
-                      {/* Stacked Bar */}
                       <div
-                        className="w-full rounded-xl overflow-hidden flex flex-col transition-transform group-hover:scale-105"
+                        className={`w-full rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 ${colors[index % colors.length]}`}
                         style={{ height: `${barHeight}px` }}
                       >
-                        {/* Inbound (top) - using primary color */}
-                        <div
-                          className="w-full bg-stage-l0 flex items-center justify-center"
-                          style={{ height: `${inboundRatio * 100}%` }}
-                        >
-                          <div className="text-white text-xs font-medium text-center px-1">
-                            <div className="opacity-80 text-[10px]">INBOUND</div>
-                            <div className="font-bold">{item.inbound || 0}</div>
-                          </div>
-                        </div>
-                        {/* Outbound (bottom) - darker shade */}
-                        <div
-                          className="w-full flex items-center justify-center"
-                          style={{
-                            height: `${outboundRatio * 100}%`,
-                            backgroundColor: 'hsl(217, 91%, 45%)'
-                          }}
-                        >
-                          <div className="text-white text-xs font-medium text-center px-1">
-                            <div className="opacity-80 text-[10px]">OUTBOUND</div>
-                            <div className="font-bold">{item.outbound || 0}</div>
-                          </div>
-                        </div>
+                        {item.count > 0 && (
+                          <span className="text-white font-bold text-lg">{item.count}</span>
+                        )}
                       </div>
-                      {/* Stage Label */}
                       <div className="text-center mt-3">
-                        <div className="text-sm font-semibold">{item.stage}</div>
-                        <div className="text-xs text-muted-foreground">{stageLabels[item.stage]}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[80px]" title={item.segment}>
+                          {item.segment}
+                        </div>
                       </div>
                     </div>
                   );
-                }
-
-                return (
-                  <div
-                    key={item.stage}
-                    className="flex-1 flex flex-col items-center cursor-pointer group"
-                    onClick={() => handleStageClick(item.stage)}
-                  >
-                    {/* Count */}
-                    <span className="text-2xl font-bold mb-1">{item.count}</span>
-                    {/* Conversion Badge */}
-                    <Badge variant="secondary" className="mb-3 text-xs bg-muted text-muted-foreground">
-                      {conversionPercent}%
-                    </Badge>
-                    {/* Bar with stage color */}
-                    <div
-                      className={`w-full rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 ${stageColors[item.stage]}`}
-                      style={{ height: `${barHeight}px` }}
-                    >
-                      {item.count > 0 && (
-                        <span className="text-white font-bold text-lg">{item.count}</span>
-                      )}
-                    </div>
-                    {/* Stage Label */}
-                    <div className="text-center mt-3">
-                      <div className="text-sm font-semibold">{item.stage}</div>
-                      <div className="text-xs text-muted-foreground">{stageLabels[item.stage]}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Two Column Layout: Company Metrics + Recent Activity */}
+        {/* Two Column Layout: Company Overview + Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Company Overview Table */}
           <Card className="lg:col-span-2">
@@ -422,10 +253,10 @@ export default function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent>
-              {companyMetrics.length === 0 ? (
+              {companies.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No companies yet.</p>
+                  <p>No companies yet. Import data to get started.</p>
                 </div>
               ) : (
                 <>
@@ -434,18 +265,18 @@ export default function Dashboard() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Company</TableHead>
-                          <TableHead>Stage</TableHead>
-                          <TableHead className="text-right">Rev Y1</TableHead>
-                          <TableHead className="text-right">Rev Y2</TableHead>
-                          <TableHead className="text-right">Rev Y3</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Rev 2022</TableHead>
+                          <TableHead className="text-right">Rev 2023</TableHead>
+                          <TableHead className="text-right">Rev 2024</TableHead>
                           <TableHead className="text-center">Trend</TableHead>
-                          <TableHead className="text-right">EBITDA Y3</TableHead>
-                          <TableHead className="text-right">Valuation</TableHead>
+                          <TableHead className="text-right">EBITDA 2024</TableHead>
+                          <TableHead className="text-right">EV 2024</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedMetrics.map((company) => {
-                          const revenueChange = getRevenueChange(company.revenue_year2, company.revenue_year3);
+                        {paginatedCompanies.map((company) => {
+                          const revenueChange = getRevenueChange(company.revenue_2023_usd_mn, company.revenue_2024_usd_mn);
                           return (
                             <TableRow key={company.id}>
                               <TableCell>
@@ -457,24 +288,30 @@ export default function Dashboard() {
                                     }}
                                     className="font-medium text-left hover:text-primary hover:underline transition-colors"
                                   >
-                                    {company.name}
+                                    {company.target || 'Unknown'}
                                   </button>
-                                  <p className="text-xs text-muted-foreground">{company.sector}</p>
+                                  <p className="text-xs text-muted-foreground">{company.segment || '-'}</p>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge className={`${stageColors[company.current_stage]} text-white text-xs`}>
-                                  {company.current_stage}
-                                </Badge>
+                                {company.l1_screening_result ? (
+                                  <Badge className={`${getStatusColor(company.l1_screening_result)} text-white text-xs`}>
+                                    {company.l1_screening_result}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Pending
+                                  </Badge>
+                                )}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
-                                {formatCurrency(company.revenue_year1)}
+                                {formatCurrency(company.revenue_2022_usd_mn)}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
-                                {formatCurrency(company.revenue_year2)}
+                                {formatCurrency(company.revenue_2023_usd_mn)}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
-                                {formatCurrency(company.revenue_year3)}
+                                {formatCurrency(company.revenue_2024_usd_mn)}
                               </TableCell>
                               <TableCell className="text-center">
                                 {revenueChange.direction === 'up' && (
@@ -492,10 +329,10 @@ export default function Dashboard() {
                                 )}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
-                                {formatCurrency(company.ebitda_year3)}
+                                {formatCurrency(company.ebitda_2024_usd_mn)}
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
-                                {formatCurrency(company.valuation)}
+                                {formatCurrency(company.ev_2024)}
                               </TableCell>
                             </TableRow>
                           );
@@ -507,7 +344,7 @@ export default function Dashboard() {
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
                       <p className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages} ({companyMetrics.length} companies)
+                        Page {currentPage} of {totalPages} ({companies.length} companies)
                       </p>
                       <div className="flex items-center gap-2">
                         <Button
@@ -534,25 +371,7 @@ export default function Dashboard() {
 
               {selectedCompany && (
                 <CompanyDetailDialog
-                  company={{
-                    id: selectedCompany.id,
-                    company_id: selectedCompany.company_id,
-                    name: selectedCompany.name,
-                    sector: selectedCompany.sector,
-                    source: selectedCompany.source,
-                    revenue_year1: selectedCompany.revenue_year1,
-                    revenue_year2: selectedCompany.revenue_year2,
-                    revenue_year3: selectedCompany.revenue_year3,
-                    ebitda_year1: selectedCompany.ebitda_year1,
-                    ebitda_year2: selectedCompany.ebitda_year2,
-                    ebitda_year3: selectedCompany.ebitda_year3,
-                    valuation: selectedCompany.valuation,
-                    current_stage: selectedCompany.current_stage,
-                    l1_status: selectedCompany.l1_status,
-                    l1_filter_results: selectedCompany.l1_filter_results,
-                    created_at: selectedCompany.created_at,
-                    updated_at: selectedCompany.updated_at,
-                  }}
+                  company={selectedCompany}
                   open={detailDialogOpen}
                   onOpenChange={setDetailDialogOpen}
                   onUpdate={() => fetchDashboardData()}
@@ -566,39 +385,45 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Recent Activity
+                Recent Updates
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/pipeline">
+                <Link href="/master-data">
                   View All <ArrowUpRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>
             </CardHeader>
             <CardContent>
-              {recentDeals.length === 0 ? (
+              {recentCompanies.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No deals yet. Start by adding companies in the Pipeline!</p>
+                  <p>No companies yet. Import data to get started.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {recentDeals.map((deal) => (
+                  {recentCompanies.map((company) => (
                     <div
-                      key={deal.id}
+                      key={company.id}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${stageColors[deal.current_stage]}`} />
+                        <div className={`w-2 h-2 rounded-full ${getStatusColor(company.l1_screening_result)}`} />
                         <div>
-                          <p className="font-medium text-sm">{deal.company_name}</p>
+                          <p className="font-medium text-sm">{company.target || 'Unknown'}</p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(deal.updated_at).toLocaleDateString()}
+                            {new Date(company.updated_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <Badge className={`${stageColors[deal.current_stage]} text-white text-xs`}>
-                        {deal.current_stage}
-                      </Badge>
+                      {company.l1_screening_result ? (
+                        <Badge className={`${getStatusColor(company.l1_screening_result)} text-white text-xs`}>
+                          {company.l1_screening_result}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Pending
+                        </Badge>
+                      )}
                     </div>
                   ))}
                 </div>

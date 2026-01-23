@@ -17,268 +17,45 @@ interface Message {
   redirectToDiscovery?: boolean;
 }
 
-// Get mock response based on keywords - same logic as AIDiscovery but adapted for widget
-const getMockResponse = (query: string): { response: string; redirectToDiscovery?: boolean } => {
+// Simple response handler - redirects complex queries to AI Discovery
+const getResponse = (query: string): { response: string; redirectToDiscovery?: boolean } => {
   const lowerQuery = query.toLowerCase();
 
-  // DEEP DIVE ANALYSIS
-  if (lowerQuery.includes('analyze') || lowerQuery.includes('deep dive') || lowerQuery.includes('review') ||
-    lowerQuery.includes('assessment') || (lowerQuery.includes('evaluate') && !lowerQuery.includes('pipeline'))) {
-
-    if (lowerQuery.includes('chiptech') || lowerQuery.includes('chip tech')) {
-      return {
-        response: `## 🔬 Deep Dive: ChipTech Solutions
-
-### Company Overview
-ChipTech Solutions is a leading semiconductor manufacturer specializing in custom IC design and fabrication services.
-
-### Financial Performance
-| Metric | 2023 | 2024 | 2025 | CAGR |
-|--------|------|------|------|------|
-| Revenue | $320M | $380M | $450M | **18.6%** |
-| EBITDA | $48M | $57M | $72M | **22.5%** |
-
-### Strengths
-✅ Strong revenue growth (18.6% CAGR)
-✅ Improving EBITDA margins
-✅ Diversified customer base
-
-### Risks
-⚠️ Customer concentration: Top 3 = 45% revenue
-⚠️ Capex intensive business model
-
-### Recommendation
-**🟢 ATTRACTIVE** - Strong growth with improving margins.`,
-      };
-    }
-
-    if (lowerQuery.includes('medtech') || lowerQuery.includes('med tech')) {
-      return {
-        response: `## 🔬 Deep Dive: MedTech Innovations
-
-### Company Overview
-MedTech Innovations is a healthcare technology company focused on advanced diagnostic and monitoring devices.
-
-### Financial Performance
-| Metric | 2023 | 2024 | 2025 | CAGR |
-|--------|------|------|------|------|
-| Revenue | $280M | $330M | $380M | **16.5%** |
-| EBITDA | $42M | $52.8M | $64.6M | **24.0%** |
-
-### Strengths
-✅ Robust margin expansion
-✅ 35% recurring revenue
-✅ Strong R&D pipeline
-
-### Risks
-⚠️ Regulatory approval delays possible
-⚠️ Competition from large players
-
-### Recommendation
-**🟢 ATTRACTIVE** - Excellent margin expansion with recurring revenue.`,
-      };
-    }
-
-    if (lowerQuery.includes('payflow')) {
-      return {
-        response: `## 🔬 Deep Dive: PayFlow Technologies
-
-### Company Overview
-PayFlow Technologies provides B2B payment processing and cash flow management solutions.
-
-### Financial Performance
-| Metric | 2023 | 2024 | 2025 | CAGR |
-|--------|------|------|------|------|
-| Revenue | $380M | $490M | $620M | **27.7%** |
-| EBITDA | $57M | $78.4M | $105.4M | **36.0%** |
-
-### Strengths
-✅ Exceptional growth (27.7% CAGR)
-✅ High net revenue retention (125%+)
-✅ Platform stickiness
-
-### Risks
-⚠️ Valuation premium to peers
-⚠️ Regulatory scrutiny increasing
-
-### Recommendation
-**🟡 MONITOR** - Excellent fundamentals but premium valuation.`,
-      };
-    }
-
+  // HELP
+  if (lowerQuery.includes('help') || lowerQuery.includes('what can you') || lowerQuery === 'hi' || lowerQuery === 'hello') {
     return {
-      response: `I can provide detailed analysis on companies. Try:
+      response: `I'm your M&A assistant! I can help you navigate the app.
 
-🔬 **Available Deep Dives:**
-• "Analyze ChipTech Solutions"
-• "Deep dive MedTech Innovations"
-• "Review PayFlow Technologies"`,
+**Quick Links:**
+- Dashboard - Overview of your data
+- Master Data - Import and manage companies
+- AI Discovery - Search and analyze companies
+
+For detailed company search and analysis, click the expand button (↗) above to open AI Discovery.`,
     };
   }
 
-  // COMPARISON / SYNERGY
-  if (lowerQuery.includes('compare') || lowerQuery.includes(' vs ') || lowerQuery.includes('versus') ||
-    lowerQuery.includes('synergy') || lowerQuery.includes('synergies')) {
-
-    if ((lowerQuery.includes('chiptech') && lowerQuery.includes('nano')) ||
-      (lowerQuery.includes('chip') && lowerQuery.includes('silicon'))) {
-      return {
-        response: `## ⚖️ ChipTech vs NanoSilicon
-
-### Financial Comparison
-| Metric | ChipTech | NanoSilicon | Winner |
-|--------|----------|-------------|--------|
-| Revenue 2025 | $450M | $320M | 🏆 ChipTech |
-| Revenue CAGR | 18.6% | 20.6% | 🏆 NanoSilicon |
-| EBITDA 2025 | $72M | $51.2M | 🏆 ChipTech |
-| Valuation | $900M | $640M | - |
-
-### Synergy Potential
-**Total Synergy Estimate:** $58-87M annually
-
-### Recommendation
-🎯 Acquire ChipTech first for scale, evaluate NanoSilicon as bolt-on in 18-24 months.`,
-      };
-    }
-
-    return {
-      response: `I can help compare companies or analyze synergies. Try:
-
-⚖️ **Comparisons:**
-• "Compare ChipTech vs NanoSilicon"
-• "Healthcare sector comparison"
-
-🤝 **Synergy Analysis:**
-• "Synergy with semiconductor portfolio"`,
-    };
-  }
-
-  // PIPELINE INSIGHTS
-  if (lowerQuery.includes('pipeline') || lowerQuery.includes('funnel') || lowerQuery.includes('conversion') ||
-    (lowerQuery.includes('performance') && !lowerQuery.includes('company')) || lowerQuery.includes('bottleneck')) {
-
-    if (lowerQuery.includes('performance') || lowerQuery.includes('summary') || lowerQuery.includes('overview')) {
-      return {
-        response: `## 📊 Pipeline Performance Summary
-
-### Current Pipeline Status
-| Stage | Companies | Conversion Rate |
-|-------|-----------|-----------------|
-| L0 - Sourcing | 12 | - |
-| L1 - Screening | 5 | 42% |
-| L2 - Initial Review | 4 | 80% |
-| L3 - Deep Dive | 3 | 75% |
-| L4 - Due Diligence | 2 | 67% |
-| L5 - Closing | 1 | 50% |
-
-### Key Metrics
-• **Total Pipeline Value:** $2.4B
-• **Avg. Time to Close:** 89 days
-• **Overall Conversion:** 7.1%
-
-### Recommendations
-✅ Conversion rates above benchmarks
-⚠️ Bottleneck at L1→L2 - refine criteria`,
-      };
-    }
-
-    if (lowerQuery.includes('conversion') || lowerQuery.includes('rate')) {
-      return {
-        response: `## 📈 Conversion Rate Analysis
-
-### Stage-by-Stage Funnel
-| Transition | Rate | Trend |
-|------------|------|-------|
-| L0→L1 | 48% | 📈 +10pp |
-| L1→L2 | 83% | 📈 +8pp |
-| L2→L3 | 60% | 📈 +5pp |
-| L3→L4 | 67% | 📈 +7pp |
-| L4→L5 | 50% | 📈 +5pp |
-
-### Insights
-🎯 All stages showing improvement
-⭐ Best improvement at L0→L1
-📌 Focus area: L4→L5 closing`,
-      };
-    }
-
-    if (lowerQuery.includes('bottleneck')) {
-      return {
-        response: `## 🔍 Bottleneck Analysis
-
-### Time in Stage
-| Stage | Avg. Days | Status |
-|-------|-----------|--------|
-| L0→L1 | 4.2 | 🟡 Slow |
-| L1→L2 | 6.8 | 🟡 Slow |
-| L4→L5 | 45.0 | 🔴 Critical |
-
-### Critical Issues
-**🔴 L4 Due Diligence (45 days)**
-• Root Cause: Data collection delays
-• Fix: Earlier data request at L3
-
-### Action Items
-1. ⚡ Deploy AI screening (-2 days)
-2. 📅 Add mid-week IC slot (-3 days)
-3. 📋 Create L3 data checklist (-10 days)`,
-      };
-    }
-
-    return {
-      response: `I can analyze your pipeline. Try:
-
-📊 **Performance:**
-• "Pipeline performance summary"
-• "Show conversion rates"
-• "Bottleneck analysis"`,
-    };
-  }
-
-  // COMPANY DISCOVERY - Redirect to AI Discovery
-  const discoveryKeywords = ['find', 'show', 'list', 'discover', 'search for', 'companies in',
-    'semiconductor', 'healthcare', 'fintech', 'saas', 'clean energy', 'cleanenergy'];
+  // Company-related queries - redirect to AI Discovery
+  const discoveryKeywords = ['find', 'show', 'list', 'discover', 'search', 'companies', 'company',
+    'technology', 'healthcare', 'financial', 'analyze', 'compare', 'data'];
 
   if (discoveryKeywords.some(keyword => lowerQuery.includes(keyword))) {
     return {
-      response: `To discover and browse companies with detailed financial data and the ability to add them directly to your pipeline, please use the full **AI Discovery** page.
+      response: `To search and browse companies from your Supabase database, please use the full **AI Discovery** page.
 
 Click the expand button (↗) above to open AI Discovery!`,
       redirectToDiscovery: true,
     };
   }
 
-  // HELP
-  if (lowerQuery.includes('help') || lowerQuery.includes('what can you')) {
-    return {
-      response: `I can help you with:
-
-🔬 **Company Analysis**
-• "Analyze ChipTech Solutions"
-• "Deep dive MedTech"
-
-⚖️ **Comparisons**
-• "Compare ChipTech vs NanoSilicon"
-
-📊 **Pipeline Insights**
-• "Pipeline performance summary"
-• "Show conversion rates"
-• "Bottleneck analysis"
-
-🔍 **Company Discovery**
-For browsing and adding companies, use the full AI Discovery page (click ↗ above)`,
-    };
-  }
-
   // Default
   return {
-    response: `I'm your M&A assistant! I can help with:
+    response: `I'm here to help! You can:
 
-• **Deep dives**: "Analyze ChipTech"
-• **Comparisons**: "Compare ChipTech vs NanoSilicon"
-• **Pipeline insights**: "Pipeline performance"
+- Ask for **help** to see what I can do
+- Open **AI Discovery** (click ↗) to search companies
 
-For company discovery with data tables, use the full AI Discovery page (click ↗).`,
+Your data is stored in Supabase. Import companies through the Master Data page.`,
   };
 };
 
@@ -290,13 +67,11 @@ export function ChatbotWidget() {
     {
       id: '1',
       role: 'assistant',
-      content: `Hi! I'm your M&A assistant. I can help with:
+      content: `Hi! I'm your M&A assistant. I can help you navigate the app.
 
-• **Company deep dives** - "Analyze ChipTech"
-• **Comparisons** - "Compare companies"  
-• **Pipeline insights** - "Performance summary"
+For company search and analysis, click ↗ to open AI Discovery.
 
-For company discovery tables, click ↗ to open AI Discovery.`,
+Your data is pulled from Supabase - import companies via Master Data.`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -326,7 +101,7 @@ For company discovery tables, click ↗ to open AI Discovery.`,
     setIsTyping(true);
 
     setTimeout(() => {
-      const { response, redirectToDiscovery } = getMockResponse(userMessage.content);
+      const { response, redirectToDiscovery } = getResponse(userMessage.content);
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -335,7 +110,7 @@ For company discovery tables, click ↗ to open AI Discovery.`,
       };
       setMessages(prev => [...prev, assistantMessage]);
       setIsTyping(false);
-    }, 800);
+    }, 300);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
