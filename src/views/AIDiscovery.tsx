@@ -58,152 +58,69 @@ const formatCurrency = (value: number | null) => {
   return `$${value.toFixed(1)}M`;
 };
 
-// Helper function to search companies from Supabase
-const searchCompanies = async (query: string): Promise<{ response: string; companies?: CompanyResult[] }> => {
-  const lowerQuery = query.toLowerCase();
-
-  // Check for segment-based search keywords
-  const segmentKeywords: Record<string, string[]> = {
-    'Technology': ['technology', 'tech', 'software', 'saas', 'cloud'],
-    'Healthcare': ['healthcare', 'health', 'medical', 'pharma'],
-    'Financial': ['financial', 'fintech', 'banking', 'finance'],
-    'Industrial': ['industrial', 'manufacturing', 'automation'],
-    'Consumer': ['consumer', 'retail', 'commerce'],
-    'Energy': ['energy', 'power', 'utilities', 'renewable'],
-  };
-
-  let segmentFilter: string | null = null;
-  for (const [segment, keywords] of Object.entries(segmentKeywords)) {
-    if (keywords.some(keyword => lowerQuery.includes(keyword))) {
-      segmentFilter = segment;
-      break;
-    }
+// Generate a unique session ID for conversation history
+const getSessionId = () => {
+  if (typeof window === 'undefined') return 'default';
+  let sessionId = sessionStorage.getItem('chat-session-id');
+  if (!sessionId) {
+    sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    sessionStorage.setItem('chat-session-id', sessionId);
   }
-
-  // Search in database
-  let query_builder = supabase
-    .from('companies')
-    .select(`
-      id,
-      target,
-      segment,
-      revenue_2021_usd_mn,
-      revenue_2022_usd_mn,
-      revenue_2023_usd_mn,
-      revenue_2024_usd_mn,
-      ebitda_2021_usd_mn,
-      ebitda_2022_usd_mn,
-      ebitda_2023_usd_mn,
-      ebitda_2024_usd_mn,
-      ev_2024
-    `)
-    .limit(10);
-
-  if (segmentFilter) {
-    query_builder = query_builder.ilike('segment', `%${segmentFilter}%`);
-  }
-
-  const { data: companies, error } = await query_builder;
-
-  if (error) {
-    console.error('Error searching companies:', error);
-    return {
-      response: 'Sorry, there was an error searching for companies. Please try again.',
-    };
-  }
-
-  if (!companies || companies.length === 0) {
-    return {
-      response: segmentFilter
-        ? `No companies found in the **${segmentFilter}** segment. Try a different search or import data first.`
-        : 'No companies found matching your search. Try searching by segment like "technology companies" or "healthcare companies".',
-    };
-  }
-
-  return {
-    response: `I found **${companies.length} companies** matching your search:`,
-    companies: companies,
-  };
+  return sessionId;
 };
 
-// Get response based on query - fetches from Supabase for company searches
-const getResponse = async (query: string): Promise<{ response: string; companies?: CompanyResult[] }> => {
-  const lowerQuery = query.toLowerCase();
+// Call the AI agent API
+const callAgentAPI = async (message: string): Promise<string> => {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message,
+      sessionId: getSessionId(),
+    }),
+  });
 
-  // Help command
-  if (lowerQuery.includes('help') || lowerQuery === 'hi' || lowerQuery === 'hello') {
-    return {
-      response: `I can help you discover and analyze companies from your database.
-
-**Company Discovery**
-Search by segment:
-- "Find technology companies"
-- "Show healthcare companies"
-- "Search financial companies"
-
-**Browse All**
-- "Show all companies"
-- "List companies"
-
-Your data is pulled directly from Supabase. Import companies through the Master Data page to see them here.`,
-    };
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get response from AI agent');
   }
 
-  // Show all companies
-  if (lowerQuery.includes('all') || lowerQuery.includes('list') || lowerQuery.includes('show')) {
-    const { data: companies, error } = await supabase
-      .from('companies')
-      .select(`
-        id,
-        target,
-        segment,
-        revenue_2021_usd_mn,
-        revenue_2022_usd_mn,
-        revenue_2023_usd_mn,
-        revenue_2024_usd_mn,
-        ebitda_2021_usd_mn,
-        ebitda_2022_usd_mn,
-        ebitda_2023_usd_mn,
-        ebitda_2024_usd_mn,
-        ev_2024
-      `)
-      .limit(20);
-
-    if (error) {
-      return { response: 'Error fetching companies. Please try again.' };
-    }
-
-    if (!companies || companies.length === 0) {
-      return { response: 'No companies in the database yet. Import data through the Master Data page.' };
-    }
-
-    return {
-      response: `Here are **${companies.length} companies** from your database:`,
-      companies: companies,
-    };
-  }
-
-  // Default: try to search companies
-  return searchCompanies(query);
+  const data = await response.json();
+  return data.response;
 };
 
 const initialMessage: Message = {
   id: '1',
   role: 'assistant',
-  content: `Hello! I'm your M&A discovery assistant. I can help you find companies from your Supabase database.
+  content: `# Welcome to M&A AI Discovery
 
-**Try searching:**
-- "Show all companies"
-- "Find technology companies"
-- "Search healthcare companies"
+I'm your intelligent M&A assistant powered by AI. I can help you explore and analyze company data from your database.
 
-Data is pulled directly from Supabase. Import companies through the Master Data page to see them here.`,
+## What I can do:
+
+1. **Query companies** - Search by segment, geography, financials
+2. **Get statistics** - Summaries, averages, breakdowns by segment/geography  
+3. **Company details** - Detailed profiles with historical financials
+4. **Web search** - Market benchmarks, industry comparisons, external data
+
+## Example questions:
+
+- "Show me all technology companies"
+- "What are the top companies by 2024 revenue?"
+- "Find companies in Japan with EBITDA > 50M"
+- "Get statistics by segment"
+- "Tell me about [company name]"
+- "What are typical EBITDA multiples in this industry?"
+
+Just ask your question and I'll analyze the data for you!`,
 };
 
 const suggestionChips = [
   "show all companies",
-  "technology companies",
-  "healthcare companies",
+  "get statistics by segment",
+  "find companies with revenue > 100M",
 ];
 
 export default function AIDiscovery() {
@@ -230,17 +147,18 @@ export default function AIDiscovery() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsTyping(true);
 
     try {
-      const { response, companies } = await getResponse(input);
+      // Call the AI agent API
+      const response = await callAgentAPI(currentInput);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: response,
-        companies,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -249,7 +167,7 @@ export default function AIDiscovery() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, there was an error processing your request. Please try again.',
+        content: `Sorry, there was an error processing your request: ${(error as Error).message}. Please try again.`,
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
