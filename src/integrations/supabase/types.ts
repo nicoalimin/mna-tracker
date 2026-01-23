@@ -8,382 +8,405 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      ai_chat_history: {
+      users: {
         Row: {
-          companies_suggested: Json | null
-          created_at: string
           id: string
-          query: string
-          response: string | null
-          user_id: string | null
+          name: string
+          password: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          companies_suggested?: Json | null
-          created_at?: string
           id?: string
-          query: string
-          response?: string | null
-          user_id?: string | null
+          name: string
+          password: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          companies_suggested?: Json | null
-          created_at?: string
           id?: string
-          query?: string
-          response?: string | null
-          user_id?: string | null
+          name?: string
+          password?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
       companies: {
         Row: {
-          created_at: string
-          created_by: string | null
-          ebitda_year1: number | null
-          ebitda_year2: number | null
-          ebitda_year3: number | null
           id: string
-          name: string
-          revenue_year1: number | null
-          revenue_year2: number | null
-          revenue_year3: number | null
-          sector: string
-          source: string
+          // Details Section
+          entry_id: number | null
+          watchlist_id: number | null
+          segment: string | null
+          target: string | null
+          segment_related_offerings: string | null
+          company_focus: string | null
+          website: string | null
+          watchlist_status: string | null
+          comments: string | null
+          ownership: string | null
+          geography: string | null
+          // Revenue Section (USD Mn)
+          revenue_2021_usd_mn: number | null
+          revenue_2022_usd_mn: number | null
+          revenue_2023_usd_mn: number | null
+          revenue_2024_usd_mn: number | null
+          // EBITDA Section (USD Mn)
+          ebitda_2021_usd_mn: number | null
+          ebitda_2022_usd_mn: number | null
+          ebitda_2023_usd_mn: number | null
+          ebitda_2024_usd_mn: number | null
+          // EV Section
+          ev_2024: number | null
+          // Revenue CAGR
+          revenue_cagr_2021_2022: number | null
+          revenue_cagr_2022_2023: number | null
+          revenue_cagr_2023_2024: number | null
+          // EBITDA Margin
+          ebitda_margin_2021: number | null
+          ebitda_margin_2022: number | null
+          ebitda_margin_2023: number | null
+          ebitda_margin_2024: number | null
+          // EV/EBITDA
+          ev_ebitda_2024: number | null
+          // Segment Details
+          segment_revenue: number | null
+          segment_ebitda: number | null
+          segment_revenue_total_ratio: number | null
+          // L0 Screening Details
+          l0_ebitda_2024_usd_mn: number | null
+          l0_ev_2024_usd_mn: number | null
+          l0_revenue_2024_usd_mn: number | null
+          l0_ev_ebitda_2024: number | null
+          segment_specific_revenue_pct: number | null
+          combined_segment_revenue: string | null
+          revenue_from_priority_geo_flag: string | null
+          pct_from_domestic: number | null
+          l0_ev_usd_mn: number | null
+          // L1 Analysis
+          l1_revenue_cagr_l3y: number | null
+          l1_revenue_drop_count: number | null
+          l1_ebitda_below_threshold_count: number | null
+          l1_revenue_cagr_n3y: number | null
+          l1_vision_fit: string | null
+          l1_priority_geo_flag: string | null
+          l1_ev_below_threshold: string | null
+          // L1 Screening
+          l1_rationale: string | null
+          l1_revenue_no_consecutive_drop_usd: string | null
+          // FX Adjustment Section
+          fx_revenue_2021: number | null
+          fx_revenue_2022: number | null
+          fx_revenue_2023: number | null
+          fx_revenue_2024: number | null
+          fx_currency: string | null
+          fx_assumed_forex_2021: number | null
+          fx_assumed_forex_2022: number | null
+          fx_assumed_forex_2023: number | null
+          fx_assumed_forex_2024: number | null
+          fx_forex_change_2021_2022: number | null
+          fx_forex_change_2022_2023: number | null
+          fx_forex_change_2023_2024: number | null
+          fx_revenue_cagr_domestic_2021_2022: number | null
+          fx_revenue_cagr_domestic_2022_2023: number | null
+          fx_revenue_cagr_domestic_2023_2024: number | null
+          fx_revenue_drop_count: number | null
+          fx_revenue_no_consecutive_drop_local: string | null
+          fx_rationale: string | null
+          fx_ebitda_above_10_l3y: string | null
+          l1_screening_result: string | null
+          // Metadata
+          created_at: string
           updated_at: string
-          valuation: number | null
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
-          ebitda_year1?: number | null
-          ebitda_year2?: number | null
-          ebitda_year3?: number | null
           id?: string
-          name: string
-          revenue_year1?: number | null
-          revenue_year2?: number | null
-          revenue_year3?: number | null
-          sector: string
-          source: string
+          // Details Section
+          entry_id?: number | null
+          watchlist_id?: number | null
+          segment?: string | null
+          target?: string | null
+          segment_related_offerings?: string | null
+          company_focus?: string | null
+          website?: string | null
+          watchlist_status?: string | null
+          comments?: string | null
+          ownership?: string | null
+          geography?: string | null
+          // Revenue Section (USD Mn)
+          revenue_2021_usd_mn?: number | null
+          revenue_2022_usd_mn?: number | null
+          revenue_2023_usd_mn?: number | null
+          revenue_2024_usd_mn?: number | null
+          // EBITDA Section (USD Mn)
+          ebitda_2021_usd_mn?: number | null
+          ebitda_2022_usd_mn?: number | null
+          ebitda_2023_usd_mn?: number | null
+          ebitda_2024_usd_mn?: number | null
+          // EV Section
+          ev_2024?: number | null
+          // Revenue CAGR
+          revenue_cagr_2021_2022?: number | null
+          revenue_cagr_2022_2023?: number | null
+          revenue_cagr_2023_2024?: number | null
+          // EBITDA Margin
+          ebitda_margin_2021?: number | null
+          ebitda_margin_2022?: number | null
+          ebitda_margin_2023?: number | null
+          ebitda_margin_2024?: number | null
+          // EV/EBITDA
+          ev_ebitda_2024?: number | null
+          // Segment Details
+          segment_revenue?: number | null
+          segment_ebitda?: number | null
+          segment_revenue_total_ratio?: number | null
+          // L0 Screening Details
+          l0_ebitda_2024_usd_mn?: number | null
+          l0_ev_2024_usd_mn?: number | null
+          l0_revenue_2024_usd_mn?: number | null
+          l0_ev_ebitda_2024?: number | null
+          segment_specific_revenue_pct?: number | null
+          combined_segment_revenue?: string | null
+          revenue_from_priority_geo_flag?: string | null
+          pct_from_domestic?: number | null
+          l0_ev_usd_mn?: number | null
+          // L1 Analysis
+          l1_revenue_cagr_l3y?: number | null
+          l1_revenue_drop_count?: number | null
+          l1_ebitda_below_threshold_count?: number | null
+          l1_revenue_cagr_n3y?: number | null
+          l1_vision_fit?: string | null
+          l1_priority_geo_flag?: string | null
+          l1_ev_below_threshold?: string | null
+          // L1 Screening
+          l1_rationale?: string | null
+          l1_revenue_no_consecutive_drop_usd?: string | null
+          // FX Adjustment Section
+          fx_revenue_2021?: number | null
+          fx_revenue_2022?: number | null
+          fx_revenue_2023?: number | null
+          fx_revenue_2024?: number | null
+          fx_currency?: string | null
+          fx_assumed_forex_2021?: number | null
+          fx_assumed_forex_2022?: number | null
+          fx_assumed_forex_2023?: number | null
+          fx_assumed_forex_2024?: number | null
+          fx_forex_change_2021_2022?: number | null
+          fx_forex_change_2022_2023?: number | null
+          fx_forex_change_2023_2024?: number | null
+          fx_revenue_cagr_domestic_2021_2022?: number | null
+          fx_revenue_cagr_domestic_2022_2023?: number | null
+          fx_revenue_cagr_domestic_2023_2024?: number | null
+          fx_revenue_drop_count?: number | null
+          fx_revenue_no_consecutive_drop_local?: string | null
+          fx_rationale?: string | null
+          fx_ebitda_above_10_l3y?: string | null
+          l1_screening_result?: string | null
+          // Metadata
+          created_at?: string
           updated_at?: string
-          valuation?: number | null
         }
         Update: {
-          created_at?: string
-          created_by?: string | null
-          ebitda_year1?: number | null
-          ebitda_year2?: number | null
-          ebitda_year3?: number | null
           id?: string
-          name?: string
-          revenue_year1?: number | null
-          revenue_year2?: number | null
-          revenue_year3?: number | null
-          sector?: string
-          source?: string
+          // Details Section
+          entry_id?: number | null
+          watchlist_id?: number | null
+          segment?: string | null
+          target?: string | null
+          segment_related_offerings?: string | null
+          company_focus?: string | null
+          website?: string | null
+          watchlist_status?: string | null
+          comments?: string | null
+          ownership?: string | null
+          geography?: string | null
+          // Revenue Section (USD Mn)
+          revenue_2021_usd_mn?: number | null
+          revenue_2022_usd_mn?: number | null
+          revenue_2023_usd_mn?: number | null
+          revenue_2024_usd_mn?: number | null
+          // EBITDA Section (USD Mn)
+          ebitda_2021_usd_mn?: number | null
+          ebitda_2022_usd_mn?: number | null
+          ebitda_2023_usd_mn?: number | null
+          ebitda_2024_usd_mn?: number | null
+          // EV Section
+          ev_2024?: number | null
+          // Revenue CAGR
+          revenue_cagr_2021_2022?: number | null
+          revenue_cagr_2022_2023?: number | null
+          revenue_cagr_2023_2024?: number | null
+          // EBITDA Margin
+          ebitda_margin_2021?: number | null
+          ebitda_margin_2022?: number | null
+          ebitda_margin_2023?: number | null
+          ebitda_margin_2024?: number | null
+          // EV/EBITDA
+          ev_ebitda_2024?: number | null
+          // Segment Details
+          segment_revenue?: number | null
+          segment_ebitda?: number | null
+          segment_revenue_total_ratio?: number | null
+          // L0 Screening Details
+          l0_ebitda_2024_usd_mn?: number | null
+          l0_ev_2024_usd_mn?: number | null
+          l0_revenue_2024_usd_mn?: number | null
+          l0_ev_ebitda_2024?: number | null
+          segment_specific_revenue_pct?: number | null
+          combined_segment_revenue?: string | null
+          revenue_from_priority_geo_flag?: string | null
+          pct_from_domestic?: number | null
+          l0_ev_usd_mn?: number | null
+          // L1 Analysis
+          l1_revenue_cagr_l3y?: number | null
+          l1_revenue_drop_count?: number | null
+          l1_ebitda_below_threshold_count?: number | null
+          l1_revenue_cagr_n3y?: number | null
+          l1_vision_fit?: string | null
+          l1_priority_geo_flag?: string | null
+          l1_ev_below_threshold?: string | null
+          // L1 Screening
+          l1_rationale?: string | null
+          l1_revenue_no_consecutive_drop_usd?: string | null
+          // FX Adjustment Section
+          fx_revenue_2021?: number | null
+          fx_revenue_2022?: number | null
+          fx_revenue_2023?: number | null
+          fx_revenue_2024?: number | null
+          fx_currency?: string | null
+          fx_assumed_forex_2021?: number | null
+          fx_assumed_forex_2022?: number | null
+          fx_assumed_forex_2023?: number | null
+          fx_assumed_forex_2024?: number | null
+          fx_forex_change_2021_2022?: number | null
+          fx_forex_change_2022_2023?: number | null
+          fx_forex_change_2023_2024?: number | null
+          fx_revenue_cagr_domestic_2021_2022?: number | null
+          fx_revenue_cagr_domestic_2022_2023?: number | null
+          fx_revenue_cagr_domestic_2023_2024?: number | null
+          fx_revenue_drop_count?: number | null
+          fx_revenue_no_consecutive_drop_local?: string | null
+          fx_rationale?: string | null
+          fx_ebitda_above_10_l3y?: string | null
+          l1_screening_result?: string | null
+          // Metadata
+          created_at?: string
           updated_at?: string
-          valuation?: number | null
         }
         Relationships: []
       }
-      deal_documents: {
+      company_logs: {
         Row: {
+          id: string
+          company_id: string | null
+          action: string
+          details: Json | null
+          user_id: string | null
           created_at: string
-          created_by: string | null
-          deal_id: string
-          file_name: string
-          file_path: string
-          file_size: number | null
-          id: string
-          mime_type: string | null
-          stage: string
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          file_name: string
-          file_path: string
-          file_size?: number | null
           id?: string
-          mime_type?: string | null
-          stage: string
+          company_id?: string | null
+          action: string
+          details?: Json | null
+          user_id?: string | null
+          created_at?: string
         }
         Update: {
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          file_name?: string
-          file_path?: string
-          file_size?: number | null
           id?: string
-          mime_type?: string | null
-          stage?: string
+          company_id?: string | null
+          action?: string
+          details?: Json | null
+          user_id?: string | null
+          created_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "deal_documents_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      deal_links: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          deal_id: string
-          id: string
-          stage: string
-          title: string | null
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          id?: string
-          stage: string
-          title?: string | null
-          url: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          id?: string
-          stage?: string
-          title?: string | null
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deal_links_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      deal_notes: {
-        Row: {
-          content: string
-          created_at: string
-          created_by: string | null
-          deal_id: string
-          id: string
-          stage: string
-          updated_at: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          id?: string
-          stage: string
-          updated_at?: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          id?: string
-          stage?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deal_notes_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      deal_stage_history: {
-        Row: {
-          deal_id: string
-          duration_seconds: number | null
-          entered_at: string
-          exited_at: string | null
-          id: string
-          stage: string
-        }
-        Insert: {
-          deal_id: string
-          duration_seconds?: number | null
-          entered_at?: string
-          exited_at?: string | null
-          id?: string
-          stage: string
-        }
-        Update: {
-          deal_id?: string
-          duration_seconds?: number | null
-          entered_at?: string
-          exited_at?: string | null
-          id?: string
-          stage?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deal_stage_history_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      deals: {
-        Row: {
-          company_id: string
-          created_at: string
-          current_stage: string
-          id: string
-          is_active: boolean
-          l1_filter_results: Json | null
-          l1_status: string | null
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          current_stage?: string
-          id?: string
-          is_active?: boolean
-          l1_filter_results?: Json | null
-          l1_status?: string | null
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          current_stage?: string
-          id?: string
-          is_active?: boolean
-          l1_filter_results?: Json | null
-          l1_status?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deals_company_id_fkey"
+            foreignKeyName: "company_logs_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
         ]
       }
-      investment_thesis: {
+      criterias: {
         Row: {
-          content: string
-          created_at: string
-          created_by: string | null
           id: string
-          is_active: boolean
-          last_scan_at: string | null
-          next_scan_at: string | null
-          scan_frequency: string
-          sources_count: number
-          title: string
+          name: string
+          prompt: string
+          created_at: string
           updated_at: string
         }
         Insert: {
-          content: string
-          created_at?: string
-          created_by?: string | null
           id?: string
-          is_active?: boolean
-          last_scan_at?: string | null
-          next_scan_at?: string | null
-          scan_frequency?: string
-          sources_count?: number
-          title?: string
+          name: string
+          prompt: string
+          created_at?: string
           updated_at?: string
         }
         Update: {
-          content?: string
-          created_at?: string
-          created_by?: string | null
           id?: string
-          is_active?: boolean
-          last_scan_at?: string | null
-          next_scan_at?: string | null
-          scan_frequency?: string
-          sources_count?: number
-          title?: string
+          name?: string
+          prompt?: string
+          created_at?: string
           updated_at?: string
         }
         Relationships: []
       }
-      market_screening_results: {
+      company_criterias: {
         Row: {
-          company_name: string
-          created_at: string
-          description: string | null
-          discovered_at: string
-          estimated_revenue: string | null
-          estimated_valuation: string | null
           id: string
-          is_added_to_pipeline: boolean
-          match_reason: string | null
-          match_score: number | null
-          sector: string | null
-          thesis_id: string | null
-          website: string | null
+          company_id: string
+          criteria_id: string
+          result: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          company_name: string
-          created_at?: string
-          description?: string | null
-          discovered_at?: string
-          estimated_revenue?: string | null
-          estimated_valuation?: string | null
           id?: string
-          is_added_to_pipeline?: boolean
-          match_reason?: string | null
-          match_score?: number | null
-          sector?: string | null
-          thesis_id?: string | null
-          website?: string | null
+          company_id: string
+          criteria_id: string
+          result?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          company_name?: string
-          created_at?: string
-          description?: string | null
-          discovered_at?: string
-          estimated_revenue?: string | null
-          estimated_valuation?: string | null
           id?: string
-          is_added_to_pipeline?: boolean
-          match_reason?: string | null
-          match_score?: number | null
-          sector?: string | null
-          thesis_id?: string | null
-          website?: string | null
+          company_id?: string
+          criteria_id?: string
+          result?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "market_screening_results_thesis_id_fkey"
-            columns: ["thesis_id"]
+            foreignKeyName: "company_criterias_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "investment_thesis"
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_criterias_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criterias"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }
@@ -391,18 +414,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_duplicate_company: {
-        Args: { company_name: string }
-        Returns: {
-          existing_company_id: string
-          existing_deal_id: string
-          is_duplicate: boolean
-          last_processed_at: string
-          last_stage: string
-        }[]
-      }
-      is_authenticated: { Args: never; Returns: boolean }
-      run_l1_filters: { Args: { deal_id_param: string }; Returns: Json }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
