@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from 'react';
 import {
   Dialog,
@@ -324,8 +322,8 @@ export default function AIScreeningDialog({
                   <div
                     key={result.company_id}
                     className={`flex items-center justify-between p-3 rounded-lg border ${result.passes
-                      ? 'bg-green-50 border-green-200'
-                      : 'bg-red-50 border-red-200'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
                       }`}
                   >
                     <div className="flex items-center gap-2">

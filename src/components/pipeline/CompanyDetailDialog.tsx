@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -412,7 +410,7 @@ export default function CompanyDetailDialog({
                         className="text-sm"
                       />
                       <Tooltip
-                        formatter={(value: any) => [formatCurrency(value), 'Revenue']}
+                        formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
@@ -457,7 +455,7 @@ export default function CompanyDetailDialog({
                         className="text-sm"
                       />
                       <Tooltip
-                        formatter={(value: any) => [formatCurrency(value), 'EBITDA']}
+                        formatter={(value: number) => [formatCurrency(value), 'EBITDA']}
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
