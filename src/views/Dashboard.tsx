@@ -37,6 +37,7 @@ interface CompanyData {
   target: string | null;
   segment: string | null;
   watchlist_status: string | null;
+  pipeline_stage: string | null;
   revenue_2021_usd_mn: number | null;
   revenue_2022_usd_mn: number | null;
   revenue_2023_usd_mn: number | null;
@@ -50,6 +51,23 @@ interface CompanyData {
   created_at: string;
   updated_at: string;
 }
+
+interface StageCounts {
+  stage: string;
+  label: string;
+  count: number;
+  inbound?: number;
+  outbound?: number;
+}
+
+const PIPELINE_STAGES: { stage: string; label: string; color: string }[] = [
+  { stage: 'L0', label: 'Sourcing', color: 'bg-blue-500' },
+  { stage: 'L1', label: 'Screening', color: 'bg-purple-500' },
+  { stage: 'L2', label: 'Initial Review', color: 'bg-amber-500' },
+  { stage: 'L3', label: 'Due Diligence', color: 'bg-green-500' },
+  { stage: 'L4', label: 'Negotiation', color: 'bg-teal-500' },
+  { stage: 'L5', label: 'Closing', color: 'bg-pink-500' },
+];
 
 const statusColors: Record<string, string> = {
   pass: 'bg-green-500',
@@ -86,7 +104,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [totalCompanies, setTotalCompanies] = useState(0);
-  const [segmentCounts, setSegmentCounts] = useState<{ segment: string; count: number }[]>([]);
+  const [stageCounts, setStageCounts] = useState<StageCounts[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCompany, setSelectedCompany] = useState<CompanyData | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -106,6 +124,7 @@ export default function Dashboard() {
           target,
           segment,
           watchlist_status,
+          pipeline_stage,
           revenue_2021_usd_mn,
           revenue_2022_usd_mn,
           revenue_2023_usd_mn,
@@ -127,18 +146,44 @@ export default function Dashboard() {
         setCompanies(companiesData);
         setTotalCompanies(companiesData.length);
 
-        // Calculate segment counts
-        const segmentMap = new Map<string, number>();
-        companiesData.forEach((company) => {
-          const segment = company.segment || 'Unknown';
-          segmentMap.set(segment, (segmentMap.get(segment) || 0) + 1);
+        // Calculate pipeline stage counts
+        const stageMap = new Map<string, { count: number; inbound: number; outbound: number }>();
+        
+        // Initialize all stages
+        PIPELINE_STAGES.forEach(({ stage }) => {
+          stageMap.set(stage, { count: 0, inbound: 0, outbound: 0 });
         });
         
-        const counts = Array.from(segmentMap.entries())
-          .map(([segment, count]) => ({ segment, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 6); // Top 6 segments
-        setSegmentCounts(counts);
+        companiesData.forEach((company) => {
+          const stage = company.pipeline_stage || 'L0';
+          const current = stageMap.get(stage) || { count: 0, inbound: 0, outbound: 0 };
+          current.count += 1;
+          
+          // For L0, track inbound vs outbound based on watchlist_status
+          if (stage === 'L0') {
+            const status = company.watchlist_status?.toLowerCase() || '';
+            if (status.includes('inbound') || status === 'active') {
+              current.inbound += 1;
+            } else {
+              current.outbound += 1;
+            }
+          }
+          
+          stageMap.set(stage, current);
+        });
+        
+        const counts: StageCounts[] = PIPELINE_STAGES.map(({ stage, label }) => {
+          const data = stageMap.get(stage) || { count: 0, inbound: 0, outbound: 0 };
+          return {
+            stage,
+            label,
+            count: data.count,
+            inbound: data.inbound,
+            outbound: data.outbound,
+          };
+        });
+        
+        setStageCounts(counts);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -177,47 +222,85 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Segment Distribution */}
+        {/* Pipeline Stages */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Companies by Segment
+              Pipeline Stages
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {segmentCounts.length === 0 ? (
+            {totalCompanies === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Building2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
                 <p>No companies in database yet.</p>
               </div>
             ) : (
-              <div className="flex items-end gap-4 justify-between" style={{ height: '280px' }}>
-                {segmentCounts.map((item, index) => {
-                  const maxCount = Math.max(...segmentCounts.map(s => s.count), 1);
-                  const barMaxHeight = 180;
-                  const barHeight = Math.max((item.count / maxCount) * barMaxHeight, 40);
+              <div className="flex items-end gap-4 justify-between" style={{ height: '320px' }}>
+                {stageCounts.map((item, index) => {
+                  const l0Count = stageCounts[0]?.count || 1;
+                  const percentage = l0Count > 0 ? Math.round((item.count / l0Count) * 100) : 0;
+                  const barMaxHeight = 200;
+                  const barHeight = Math.max((item.count / l0Count) * barMaxHeight, item.count > 0 ? 50 : 20);
+                  const stageConfig = PIPELINE_STAGES[index];
 
-                  const colors = [
-                    'bg-blue-500',
-                    'bg-green-500',
-                    'bg-purple-500',
-                    'bg-orange-500',
-                    'bg-pink-500',
-                    'bg-teal-500',
-                  ];
+                  // Special handling for L0 - show inbound/outbound split
+                  if (item.stage === 'L0') {
+                    const inboundHeight = item.inbound && item.count > 0 
+                      ? (item.inbound / item.count) * barHeight 
+                      : barHeight / 2;
+                    const outboundHeight = barHeight - inboundHeight;
+
+                    return (
+                      <div
+                        key={item.stage}
+                        className="flex-1 flex flex-col items-center group"
+                      >
+                        <span className="text-2xl font-bold mb-1">{item.count}</span>
+                        <Badge variant="secondary" className="mb-3 text-xs bg-muted text-muted-foreground">
+                          100%
+                        </Badge>
+                        <div
+                          className="w-full rounded-xl overflow-hidden transition-transform group-hover:scale-105 flex flex-col"
+                          style={{ height: `${barHeight}px` }}
+                        >
+                          {/* Inbound section */}
+                          <div
+                            className="w-full bg-blue-600 flex flex-col items-center justify-center"
+                            style={{ height: `${inboundHeight}px` }}
+                          >
+                            <span className="text-white text-[10px] font-medium uppercase tracking-wide">Inbound</span>
+                            <span className="text-white font-bold">{item.inbound || 0}</span>
+                          </div>
+                          {/* Outbound section */}
+                          <div
+                            className="w-full bg-blue-400 flex flex-col items-center justify-center"
+                            style={{ height: `${outboundHeight}px` }}
+                          >
+                            <span className="text-white text-[10px] font-medium uppercase tracking-wide">Outbound</span>
+                            <span className="text-white font-bold">{item.outbound || 0}</span>
+                          </div>
+                        </div>
+                        <div className="text-center mt-3">
+                          <div className="font-medium text-sm">{item.stage}</div>
+                          <div className="text-xs text-muted-foreground">{item.label}</div>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
-                      key={item.segment}
+                      key={item.stage}
                       className="flex-1 flex flex-col items-center group"
                     >
                       <span className="text-2xl font-bold mb-1">{item.count}</span>
                       <Badge variant="secondary" className="mb-3 text-xs bg-muted text-muted-foreground">
-                        {totalCompanies > 0 ? Math.round((item.count / totalCompanies) * 100) : 0}%
+                        {percentage}%
                       </Badge>
                       <div
-                        className={`w-full rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 ${colors[index % colors.length]}`}
+                        className={`w-full rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 ${stageConfig.color}`}
                         style={{ height: `${barHeight}px` }}
                       >
                         {item.count > 0 && (
@@ -225,9 +308,8 @@ export default function Dashboard() {
                         )}
                       </div>
                       <div className="text-center mt-3">
-                        <div className="text-xs text-muted-foreground truncate max-w-[80px]" title={item.segment}>
-                          {item.segment}
-                        </div>
+                        <div className="font-medium text-sm">{item.stage}</div>
+                        <div className="text-xs text-muted-foreground">{item.label}</div>
                       </div>
                     </div>
                   );
