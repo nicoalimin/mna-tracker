@@ -150,11 +150,9 @@ export default function AIScreeningDialog({
   const moveToL1 = async () => {
     if (!results) return;
 
-    const passingCompanyIds = results.results
-      .filter((r) => r.passes)
-      .map((r) => r.company_id);
+    const passingCompanies = results.results.filter((r) => r.passes);
 
-    if (passingCompanyIds.length === 0) {
+    if (passingCompanies.length === 0) {
       toast.error('No companies passed the screening criteria');
       return;
     }
@@ -162,42 +160,30 @@ export default function AIScreeningDialog({
     setIsMoving(true);
 
     try {
-      // Update deals to L1 stage
-      for (const companyId of passingCompanyIds) {
-        // Get the deal for this company
-        const { data: deal } = await supabase
-          .from('deals')
-          .select('id')
-          .eq('id', companyId)
-          .single();
+      // Update companies to move to L1 stage
+      for (const company of passingCompanies) {
+        // Update the company's pipeline stage to L1
+        const { error: updateError } = await supabase
+          .from('companies')
+          .update({
+            pipeline_stage: 'L1',
+            l1_screening_result: 'Pass',
+          })
+          .eq('id', company.company_id);
 
-        if (deal) {
-          // Update stage history
-          await supabase
-            .from('deal_stage_history')
-            .update({ exited_at: new Date().toISOString() })
-            .eq('deal_id', deal.id)
-            .eq('stage', 'L0')
-            .is('exited_at', null);
-
-          // Create new stage history
-          await supabase.from('deal_stage_history').insert({
-            deal_id: deal.id,
-            stage: 'L1',
-          });
-
-          // Update deal stage and set l1_status to Pass
-          await supabase
-            .from('deals')
-            .update({
-              current_stage: 'L1',
-              l1_status: 'Pass',
-            })
-            .eq('id', deal.id);
+        if (updateError) {
+          console.error('Error updating company:', updateError);
+          continue;
         }
+
+        // Log the screening action
+        await supabase.from('company_logs').insert({
+          company_id: company.company_id,
+          action: 'PROMOTED_TO_L1',
+        });
       }
 
-      toast.success(`${passingCompanyIds.length} companies moved to L1`);
+      toast.success(`${passingCompanies.length} companies moved to L1`);
       onComplete();
       onOpenChange(false);
     } catch (error: any) {

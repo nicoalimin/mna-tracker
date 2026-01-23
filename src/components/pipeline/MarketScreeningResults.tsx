@@ -98,15 +98,15 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
       const selectedResults = results.filter(r => selectedIds.has(r.id));
 
       for (const result of selectedResults) {
-        // Create company
+        // Create company with pipeline_stage set to L0
         const { data: company, error: companyError } = await supabase
           .from('companies')
           .insert({
-            name: result.company_name,
-            sector: result.sector || 'Unknown',
-            source: 'outbound',
+            target: result.company_name,
+            segment: result.sector || 'Unknown',
+            pipeline_stage: 'L0',
             // Parse estimated values if available
-            valuation: parseEstimatedValue(result.estimated_valuation),
+            ev_2024: parseEstimatedValue(result.estimated_valuation),
           })
           .select()
           .single();
@@ -116,23 +116,10 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
           continue;
         }
 
-        // Create deal
-        const { error: dealError } = await supabase
-          .from('deals')
-          .insert({
-            company_id: company.id,
-            current_stage: 'L0',
-          });
-
-        if (dealError) {
-          console.error('Error creating deal:', dealError);
-          continue;
-        }
-
-        // Create stage history
-        await supabase.from('deal_stage_history').insert({
-          deal_id: company.id,
-          stage: 'L0',
+        // Log the addition
+        await supabase.from('company_logs').insert({
+          company_id: company.id,
+          action: 'ADDED_FROM_MARKET_SCREENING',
         });
 
         // Mark as added

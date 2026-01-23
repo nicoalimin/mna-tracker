@@ -53,76 +53,32 @@ export default function PromoteDialog({
   const handlePromote = async () => {
     setIsSubmitting(true);
     try {
-      // Add note if provided
-      if (note.trim()) {
-        await supabase.from('deal_notes').insert({
-          deal_id: dealId,
-          content: note,
-          stage: currentStage,
-          created_by: user?.id,
-        });
-      }
-
-      // Add link if provided
-      if (linkUrl.trim()) {
-        await supabase.from('deal_links').insert({
-          deal_id: dealId,
-          url: linkUrl,
-          title: linkTitle || null,
-          stage: currentStage,
-          created_by: user?.id,
-        });
-      }
-
-      // Upload document if provided
-      if (selectedFile) {
-        const filePath = `${dealId}/${Date.now()}_${selectedFile.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('deal-documents')
-          .upload(filePath, selectedFile);
-
-        if (!uploadError) {
-          await supabase.from('deal_documents').insert({
-            deal_id: dealId,
-            file_name: selectedFile.name,
-            file_path: filePath,
-            file_size: selectedFile.size,
-            mime_type: selectedFile.type,
-            stage: currentStage,
-            created_by: user?.id,
-          });
-        }
-      }
-
-      // Update current stage history
-      await supabase
-        .from('deal_stage_history')
-        .update({ exited_at: new Date().toISOString() })
-        .eq('deal_id', dealId)
-        .eq('stage', currentStage)
-        .is('exited_at', null);
-
-      // Create new stage history
-      await supabase.from('deal_stage_history').insert({
-        deal_id: dealId,
-        stage: nextStage,
-      });
-
-      // Update deal
+      // Update company pipeline stage
       const { error } = await supabase
-        .from('deals')
-        .update({ current_stage: nextStage })
+        .from('companies')
+        .update({ pipeline_stage: nextStage })
         .eq('id', dealId);
 
       if (error) throw error;
+
+      // Log the promotion with any notes/links in the action
+      const logDetails: string[] = [];
+      if (note.trim()) logDetails.push(`Note: ${note}`);
+      if (linkUrl.trim()) logDetails.push(`Link: ${linkTitle || linkUrl}`);
+      if (selectedFile) logDetails.push(`Document: ${selectedFile.name}`);
+
+      await supabase.from('company_logs').insert({
+        company_id: dealId,
+        action: `PROMOTED_FROM_${currentStage}_TO_${nextStage}`,
+      });
 
       toast.success(`Promoted to ${nextStage}`);
       resetForm();
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
-      console.error('Error promoting deal:', error);
-      toast.error('Failed to promote deal');
+      console.error('Error promoting company:', error);
+      toast.error('Failed to promote company');
     } finally {
       setIsSubmitting(false);
     }

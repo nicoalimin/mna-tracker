@@ -15,6 +15,9 @@ export interface User {
 export interface Company {
   id: string;
   
+  // Pipeline Stage
+  pipeline_stage: DealStage;
+  
   // Details Section
   entry_id: number | null;
   watchlist_id: number | null;
@@ -163,9 +166,22 @@ export interface CompanyCriteria {
 export type WatchlistStatus = 'Active' | 'Inactive' | 'Pending' | 'Removed';
 
 // ============================================
+// Pipeline Stage Enum
+// ============================================
+export type DealStage = 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+
+// ============================================
+// L1 Status Enum
+// ============================================
+export type L1Status = 'Pass' | 'No' | 'Exception' | 'WatchList' | 'TBC' | 'Duplicate';
+
+// ============================================
 // Company Insert/Update Types
 // ============================================
 export interface CompanyInsert {
+  // Pipeline Stage
+  pipeline_stage?: DealStage;
+  
   // Details Section
   entry_id?: number | null;
   watchlist_id?: number | null;

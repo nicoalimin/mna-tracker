@@ -71,32 +71,26 @@ export default function L0AddCompany({ onSuccess }: L0AddCompanyProps) {
       const { data: company, error: companyError } = await supabase
         .from('companies')
         .insert({
-          name: formData.name,
-          sector: formData.sector,
-          revenue_year1: parseNumber(formData.revenue_year1),
-          revenue_year2: parseNumber(formData.revenue_year2),
-          revenue_year3: parseNumber(formData.revenue_year3),
-          ebitda_year1: parseNumber(formData.ebitda_year1),
-          ebitda_year2: parseNumber(formData.ebitda_year2),
-          ebitda_year3: parseNumber(formData.ebitda_year3),
-          valuation: parseNumber(formData.valuation),
-          source: 'inbound',
+          target: formData.name,
+          segment: formData.sector,
+          revenue_2022_usd_mn: parseNumber(formData.revenue_year1),
+          revenue_2023_usd_mn: parseNumber(formData.revenue_year2),
+          revenue_2024_usd_mn: parseNumber(formData.revenue_year3),
+          ebitda_2022_usd_mn: parseNumber(formData.ebitda_year1),
+          ebitda_2023_usd_mn: parseNumber(formData.ebitda_year2),
+          ebitda_2024_usd_mn: parseNumber(formData.ebitda_year3),
+          ev_2024: parseNumber(formData.valuation),
+          pipeline_stage: 'L0',
         })
         .select()
         .single();
 
       if (companyError) throw companyError;
 
-      const { error: dealError } = await supabase.from('deals').insert({
+      // Log the company addition
+      await supabase.from('company_logs').insert({
         company_id: company.id,
-        current_stage: 'L0',
-      });
-
-      if (dealError) throw dealError;
-
-      await supabase.from('deal_stage_history').insert({
-        deal_id: company.id,
-        stage: 'L0',
+        action: 'ADDED_TO_PIPELINE',
       });
 
       toast.success(`${formData.name} added to pipeline!`);
@@ -156,16 +150,16 @@ export default function L0AddCompany({ onSuccess }: L0AddCompanyProps) {
         const { data: newCompany, error: companyError } = await supabase
           .from('companies')
           .insert({
-            name: company.name,
-            sector: company.sector,
-            revenue_year1: parseNumber(company.revenue_year1),
-            revenue_year2: parseNumber(company.revenue_year2),
-            revenue_year3: parseNumber(company.revenue_year3),
-            ebitda_year1: parseNumber(company.ebitda_year1),
-            ebitda_year2: parseNumber(company.ebitda_year2),
-            ebitda_year3: parseNumber(company.ebitda_year3),
-            valuation: parseNumber(company.valuation),
-            source: 'inbound',
+            target: company.name,
+            segment: company.sector,
+            revenue_2022_usd_mn: parseNumber(company.revenue_year1),
+            revenue_2023_usd_mn: parseNumber(company.revenue_year2),
+            revenue_2024_usd_mn: parseNumber(company.revenue_year3),
+            ebitda_2022_usd_mn: parseNumber(company.ebitda_year1),
+            ebitda_2023_usd_mn: parseNumber(company.ebitda_year2),
+            ebitda_2024_usd_mn: parseNumber(company.ebitda_year3),
+            ev_2024: parseNumber(company.valuation),
+            pipeline_stage: 'L0',
           })
           .select()
           .single();
@@ -175,9 +169,10 @@ export default function L0AddCompany({ onSuccess }: L0AddCompanyProps) {
           continue;
         }
 
-        await supabase.from('deals').insert({
+        // Log the company addition
+        await supabase.from('company_logs').insert({
           company_id: newCompany.id,
-          current_stage: 'L0',
+          action: 'ADDED_TO_PIPELINE',
         });
 
         successCount++;

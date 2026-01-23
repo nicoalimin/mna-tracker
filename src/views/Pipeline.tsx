@@ -62,22 +62,19 @@ import AIScreeningDialog from '@/components/pipeline/AIScreeningDialog';
 import MarketScreeningStatus from '@/components/pipeline/MarketScreeningStatus';
 import MarketScreeningResults from '@/components/pipeline/MarketScreeningResults';
 
-interface CompanyWithDeal {
+interface PipelineCompany {
   id: string;
-  company_id: string;
-  name: string;
-  sector: string;
-  source: string;
-  revenue_year1: number | null;
-  revenue_year2: number | null;
-  revenue_year3: number | null;
-  ebitda_year1: number | null;
-  ebitda_year2: number | null;
-  ebitda_year3: number | null;
-  valuation: number | null;
-  current_stage: DealStage;
-  l1_status: L1Status | null;
-  l1_filter_results: any;
+  target: string;
+  segment: string;
+  revenue_2022_usd_mn: number | null;
+  revenue_2023_usd_mn: number | null;
+  revenue_2024_usd_mn: number | null;
+  ebitda_2022_usd_mn: number | null;
+  ebitda_2023_usd_mn: number | null;
+  ebitda_2024_usd_mn: number | null;
+  ev_2024: number | null;
+  pipeline_stage: DealStage;
+  l1_screening_result: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -159,11 +156,11 @@ export default function Pipeline() {
   const router = useRouter();
   const initialTab = searchParams.get('stage') || 'L0';
   const [activeTab, setActiveTab] = useState<DealStage>(initialTab as DealStage);
-  const [companies, setCompanies] = useState<CompanyWithDeal[]>([]);
+  const [companies, setCompanies] = useState<PipelineCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
-  const [selectedCompany, setSelectedCompany] = useState<CompanyWithDeal | null>(null);
+  const [sectorFilterValue, setSectorFilterValue] = useState<string>('all');
+  const [selectedCompany, setSelectedCompany] = useState<PipelineCompany | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showScreeningDialog, setShowScreeningDialog] = useState(false);
@@ -180,60 +177,54 @@ export default function Pipeline() {
   // Sector filter
   const [sectorFilter, setSectorFilter] = useState<string>('all');
 
+  // Source filter
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+
   // Promote dialog state
   const [promoteDialogOpen, setPromoteDialogOpen] = useState(false);
-  const [promotingCompany, setPromotingCompany] = useState<CompanyWithDeal | null>(null);
+  const [promotingCompany, setPromotingCompany] = useState<PipelineCompany | null>(null);
 
   const fetchCompanies = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('deals')
+        .from('companies')
         .select(`
           id,
-          company_id,
-          current_stage,
-          l1_status,
-          l1_filter_results,
+          target,
+          segment,
+          revenue_2022_usd_mn,
+          revenue_2023_usd_mn,
+          revenue_2024_usd_mn,
+          ebitda_2022_usd_mn,
+          ebitda_2023_usd_mn,
+          ebitda_2024_usd_mn,
+          ev_2024,
+          pipeline_stage,
+          l1_screening_result,
           created_at,
-          updated_at,
-          companies (
-            id,
-            name,
-            sector,
-            source,
-            revenue_year1,
-            revenue_year2,
-            revenue_year3,
-            ebitda_year1,
-            ebitda_year2,
-            ebitda_year3,
-            valuation
-          )
+          updated_at
         `)
-        .eq('is_active', true)
+        .not('pipeline_stage', 'is', null)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
 
-      const formatted = data?.map((deal: any) => ({
-        id: deal.id,
-        company_id: deal.company_id,
-        name: deal.companies.name,
-        sector: deal.companies.sector,
-        source: deal.companies.source,
-        revenue_year1: deal.companies.revenue_year1,
-        revenue_year2: deal.companies.revenue_year2,
-        revenue_year3: deal.companies.revenue_year3,
-        ebitda_year1: deal.companies.ebitda_year1,
-        ebitda_year2: deal.companies.ebitda_year2,
-        ebitda_year3: deal.companies.ebitda_year3,
-        valuation: deal.companies.valuation,
-        current_stage: deal.current_stage as DealStage,
-        l1_status: deal.l1_status as L1Status | null,
-        l1_filter_results: deal.l1_filter_results,
-        created_at: deal.created_at,
-        updated_at: deal.updated_at,
+      const formatted: PipelineCompany[] = data?.map((company: any) => ({
+        id: company.id,
+        target: company.target || '',
+        segment: company.segment || '',
+        revenue_2022_usd_mn: company.revenue_2022_usd_mn,
+        revenue_2023_usd_mn: company.revenue_2023_usd_mn,
+        revenue_2024_usd_mn: company.revenue_2024_usd_mn,
+        ebitda_2022_usd_mn: company.ebitda_2022_usd_mn,
+        ebitda_2023_usd_mn: company.ebitda_2023_usd_mn,
+        ebitda_2024_usd_mn: company.ebitda_2024_usd_mn,
+        ev_2024: company.ev_2024,
+        pipeline_stage: (company.pipeline_stage || 'L0') as DealStage,
+        l1_screening_result: company.l1_screening_result,
+        created_at: company.created_at,
+        updated_at: company.updated_at,
       })) || [];
 
       setCompanies(formatted);
@@ -274,16 +265,15 @@ export default function Pipeline() {
   };
 
   // Get unique sectors for filter
-  const uniqueSectors = [...new Set(companies.map(c => c.sector))].sort();
+  const uniqueSectors = [...new Set(companies.map(c => c.segment).filter(Boolean))].sort();
 
   const filteredCompanies = companies.filter((company) => {
-    const matchesStage = company.current_stage === activeTab;
-    const matchesSearch = company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.sector.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSource = sourceFilter === 'all' || company.source === sourceFilter;
-    const matchesL1Status = l1StatusFilter === 'all' || company.l1_status === l1StatusFilter;
-    const matchesSector = sectorFilter === 'all' || company.sector === sectorFilter;
-    return matchesStage && matchesSearch && matchesSource && matchesL1Status && matchesSector;
+    const matchesStage = company.pipeline_stage === activeTab;
+    const matchesSearch = company.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (company.segment || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesL1Status = l1StatusFilter === 'all' || company.l1_screening_result === l1StatusFilter;
+    const matchesSector = sectorFilter === 'all' || company.segment === sectorFilter;
+    return matchesStage && matchesSearch && matchesL1Status && matchesSector;
   });
 
   // Apply sorting
@@ -295,24 +285,24 @@ export default function Pipeline() {
 
     switch (sortField) {
       case 'name':
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
+        aVal = a.target.toLowerCase();
+        bVal = b.target.toLowerCase();
         break;
       case 'sector':
-        aVal = a.sector.toLowerCase();
-        bVal = b.sector.toLowerCase();
+        aVal = (a.segment || '').toLowerCase();
+        bVal = (b.segment || '').toLowerCase();
         break;
       case 'revenue':
-        aVal = a.revenue_year3 || 0;
-        bVal = b.revenue_year3 || 0;
+        aVal = a.revenue_2024_usd_mn || 0;
+        bVal = b.revenue_2024_usd_mn || 0;
         break;
       case 'ebitda':
-        aVal = a.ebitda_year3 || 0;
-        bVal = b.ebitda_year3 || 0;
+        aVal = a.ebitda_2024_usd_mn || 0;
+        bVal = b.ebitda_2024_usd_mn || 0;
         break;
       case 'valuation':
-        aVal = a.valuation || 0;
-        bVal = b.valuation || 0;
+        aVal = a.ev_2024 || 0;
+        bVal = b.ev_2024 || 0;
         break;
       case 'updated':
         aVal = new Date(a.updated_at).getTime();
@@ -369,20 +359,20 @@ export default function Pipeline() {
       .filter((c) => selectedIds.has(c.id))
       .map((c) => ({
         id: c.id,
-        name: c.name,
-        sector: c.sector,
-        revenue_year1: c.revenue_year1,
-        revenue_year2: c.revenue_year2,
-        revenue_year3: c.revenue_year3,
-        ebitda_year1: c.ebitda_year1,
-        ebitda_year2: c.ebitda_year2,
-        ebitda_year3: c.ebitda_year3,
-        valuation: c.valuation,
-        source: c.source,
+        name: c.target,
+        sector: c.segment || '',
+        revenue_year1: c.revenue_2022_usd_mn,
+        revenue_year2: c.revenue_2023_usd_mn,
+        revenue_year3: c.revenue_2024_usd_mn,
+        ebitda_year1: c.ebitda_2022_usd_mn,
+        ebitda_year2: c.ebitda_2023_usd_mn,
+        ebitda_year3: c.ebitda_2024_usd_mn,
+        valuation: c.ev_2024,
+        source: 'pipeline',
       }));
   };
 
-  const promoteToNextStage = async (dealId: string, currentStage: DealStage) => {
+  const promoteToNextStage = async (companyId: string, currentStage: DealStage) => {
     const stageIndex = STAGES.indexOf(currentStage);
     if (stageIndex >= STAGES.length - 1) {
       toast.error('Already at final stage');
@@ -392,37 +382,29 @@ export default function Pipeline() {
     const nextStage = STAGES[stageIndex + 1];
 
     try {
-      // Update current stage history
-      await supabase
-        .from('deal_stage_history')
-        .update({ exited_at: new Date().toISOString() })
-        .eq('deal_id', dealId)
-        .eq('stage', currentStage)
-        .is('exited_at', null);
-
-      // Create new stage history
-      await supabase.from('deal_stage_history').insert({
-        deal_id: dealId,
-        stage: nextStage,
-      });
-
-      // Update deal
+      // Update company pipeline stage
       const { error } = await supabase
-        .from('deals')
-        .update({ current_stage: nextStage })
-        .eq('id', dealId);
+        .from('companies')
+        .update({ pipeline_stage: nextStage })
+        .eq('id', companyId);
 
       if (error) throw error;
+
+      // Log the promotion
+      await supabase.from('company_logs').insert({
+        company_id: companyId,
+        action: `PROMOTED_TO_${nextStage}`,
+      });
 
       toast.success(`Promoted to ${nextStage}`);
       fetchCompanies();
     } catch (error: any) {
-      console.error('Error promoting deal:', error);
-      toast.error('Failed to promote deal');
+      console.error('Error promoting company:', error);
+      toast.error('Failed to promote company');
     }
   };
 
-  const stageCount = (stage: DealStage) => companies.filter((c) => c.current_stage === stage).length;
+  const stageCount = (stage: DealStage) => companies.filter((c) => c.pipeline_stage === stage).length;
 
   const toggleSelect = (id: string) => {
     const newSet = new Set(selectedIds);
@@ -435,7 +417,7 @@ export default function Pipeline() {
   };
 
   const toggleSelectAll = () => {
-    const l0Companies = filteredCompanies.filter(c => c.current_stage === 'L0');
+    const l0Companies = filteredCompanies.filter(c => c.pipeline_stage === 'L0');
     if (selectedIds.size === l0Companies.length && l0Companies.length > 0) {
       setSelectedIds(new Set());
     } else {
@@ -444,7 +426,7 @@ export default function Pipeline() {
   };
 
   const isAllSelected = () => {
-    const l0Companies = filteredCompanies.filter(c => c.current_stage === 'L0');
+    const l0Companies = filteredCompanies.filter(c => c.pipeline_stage === 'L0');
     return l0Companies.length > 0 && selectedIds.size === l0Companies.length;
   };
 
@@ -685,42 +667,36 @@ export default function Pipeline() {
                                           onClick={() => setSelectedCompany(company)}
                                           className="font-medium text-left hover:text-primary hover:underline transition-colors"
                                         >
-                                          {company.name}
+                                          {company.target}
                                         </button>
                                       </TableCell>
                                       <TableCell>
-                                        <span className="text-muted-foreground">{company.sector}</span>
+                                        <span className="text-muted-foreground">{company.segment}</span>
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.revenue_year1)}
+                                        {formatCurrency(company.revenue_2022_usd_mn)}
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.revenue_year2)}
+                                        {formatCurrency(company.revenue_2023_usd_mn)}
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.revenue_year3)}
+                                        {formatCurrency(company.revenue_2024_usd_mn)}
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ebitda_year1)}
+                                        {formatCurrency(company.ebitda_2022_usd_mn)}
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ebitda_year2)}
+                                        {formatCurrency(company.ebitda_2023_usd_mn)}
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ebitda_year3)}
+                                        {formatCurrency(company.ebitda_2024_usd_mn)}
                                       </TableCell>
                                       <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.valuation)}
+                                        {formatCurrency(company.ev_2024)}
                                       </TableCell>
                                       <TableCell className="text-center">
-                                        <Badge
-                                          variant={company.source === 'inbound' ? 'default' : 'secondary'}
-                                          className={company.source === 'inbound'
-                                            ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30'
-                                            : 'bg-purple-500/20 text-purple-600 hover:bg-purple-500/30'
-                                          }
-                                        >
-                                          {company.source === 'inbound' ? 'Inbound' : 'Outbound'}
+                                        <Badge variant="outline">
+                                          {company.pipeline_stage}
                                         </Badge>
                                       </TableCell>
                                     </TableRow>
@@ -843,37 +819,37 @@ export default function Pipeline() {
                                         onClick={() => setSelectedCompany(company)}
                                         className="font-medium text-left hover:text-primary hover:underline transition-colors"
                                       >
-                                        {company.name}
+                                        {company.target}
                                       </button>
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant="outline">{company.sector}</Badge>
+                                      <Badge variant="outline">{company.segment}</Badge>
                                     </TableCell>
                                     {stage === 'L1' && (
                                       <TableCell>
-                                        <L1StatusBadge status={company.l1_status} />
+                                        <L1StatusBadge status={company.l1_screening_result as L1Status | null} />
                                       </TableCell>
                                     )}
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.revenue_year1)}
+                                      {formatCurrency(company.revenue_2022_usd_mn)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.revenue_year2)}
+                                      {formatCurrency(company.revenue_2023_usd_mn)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.revenue_year3)}
+                                      {formatCurrency(company.revenue_2024_usd_mn)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.ebitda_year1)}
+                                      {formatCurrency(company.ebitda_2022_usd_mn)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.ebitda_year2)}
+                                      {formatCurrency(company.ebitda_2023_usd_mn)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.ebitda_year3)}
+                                      {formatCurrency(company.ebitda_2024_usd_mn)}
                                     </TableCell>
                                     <TableCell className="text-right font-mono">
-                                      {formatCurrency(company.valuation)}
+                                      {formatCurrency(company.ev_2024)}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                       {formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}
@@ -932,9 +908,9 @@ export default function Pipeline() {
             open={promoteDialogOpen}
             onOpenChange={setPromoteDialogOpen}
             dealId={promotingCompany.id}
-            companyName={promotingCompany.name}
-            currentStage={promotingCompany.current_stage}
-            nextStage={STAGES[STAGES.indexOf(promotingCompany.current_stage) + 1] as DealStage}
+            companyName={promotingCompany.target}
+            currentStage={promotingCompany.pipeline_stage}
+            nextStage={STAGES[STAGES.indexOf(promotingCompany.pipeline_stage) + 1] as DealStage}
             onSuccess={() => {
               setPromotingCompany(null);
               fetchCompanies();

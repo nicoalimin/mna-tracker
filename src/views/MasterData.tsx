@@ -34,22 +34,19 @@ import {
 } from 'lucide-react';
 import type { DealStage } from '@/lib/types';
 
-interface CompanyWithDeal {
+interface MasterDataCompany {
   id: string;
-  name: string;
-  sector: string;
-  source: string;
-  revenue_year1: number | null;
-  revenue_year2: number | null;
-  revenue_year3: number | null;
-  ebitda_year1: number | null;
-  ebitda_year2: number | null;
-  ebitda_year3: number | null;
-  valuation: number | null;
+  target: string;
+  segment: string;
+  revenue_2022_usd_mn: number | null;
+  revenue_2023_usd_mn: number | null;
+  revenue_2024_usd_mn: number | null;
+  ebitda_2022_usd_mn: number | null;
+  ebitda_2023_usd_mn: number | null;
+  ebitda_2024_usd_mn: number | null;
+  ev_2024: number | null;
   created_at: string;
-  deal_id: string;
-  current_stage: DealStage;
-  is_active: boolean;
+  pipeline_stage: DealStage | null;
 }
 
 const stageLabels: Record<DealStage | 'Acquired', string> = {
@@ -89,12 +86,11 @@ const getRevenueChange = (year2: number | null, year3: number | null): { directi
 };
 
 export default function MasterData() {
-  const [companies, setCompanies] = useState<CompanyWithDeal[]>([]);
+  const [companies, setCompanies] = useState<MasterDataCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchCompanies();
@@ -103,47 +99,39 @@ export default function MasterData() {
   const fetchCompanies = async () => {
     try {
       const { data, error } = await supabase
-        .from('deals')
+        .from('companies')
         .select(`
           id,
-          current_stage,
-          is_active,
-          company:companies (
-            id,
-            name,
-            sector,
-            source,
-            revenue_year1,
-            revenue_year2,
-            revenue_year3,
-            ebitda_year1,
-            ebitda_year2,
-            ebitda_year3,
-            valuation,
-            created_at
-          )
+          target,
+          segment,
+          revenue_2022_usd_mn,
+          revenue_2023_usd_mn,
+          revenue_2024_usd_mn,
+          ebitda_2022_usd_mn,
+          ebitda_2023_usd_mn,
+          ebitda_2024_usd_mn,
+          ev_2024,
+          pipeline_stage,
+          created_at
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       if (data) {
-        const formatted = data.map((deal: any) => ({
-          id: deal.company?.id,
-          name: deal.company?.name || 'Unknown',
-          sector: deal.company?.sector || '',
-          source: deal.company?.source || '',
-          revenue_year1: deal.company?.revenue_year1,
-          revenue_year2: deal.company?.revenue_year2,
-          revenue_year3: deal.company?.revenue_year3,
-          ebitda_year1: deal.company?.ebitda_year1,
-          ebitda_year2: deal.company?.ebitda_year2,
-          ebitda_year3: deal.company?.ebitda_year3,
-          valuation: deal.company?.valuation,
-          created_at: deal.company?.created_at,
-          deal_id: deal.id,
-          current_stage: deal.current_stage as DealStage,
-          is_active: deal.is_active,
+        const formatted: MasterDataCompany[] = data.map((company: any) => ({
+          id: company.id,
+          target: company.target || 'Unknown',
+          segment: company.segment || '',
+          revenue_2022_usd_mn: company.revenue_2022_usd_mn,
+          revenue_2023_usd_mn: company.revenue_2023_usd_mn,
+          revenue_2024_usd_mn: company.revenue_2024_usd_mn,
+          ebitda_2022_usd_mn: company.ebitda_2022_usd_mn,
+          ebitda_2023_usd_mn: company.ebitda_2023_usd_mn,
+          ebitda_2024_usd_mn: company.ebitda_2024_usd_mn,
+          ev_2024: company.ev_2024,
+          created_at: company.created_at,
+          pipeline_stage: company.pipeline_stage as DealStage | null,
         }));
         setCompanies(formatted);
       }
@@ -154,38 +142,34 @@ export default function MasterData() {
     }
   };
 
-  const getDisplayStage = (company: CompanyWithDeal): DealStage | 'Acquired' => {
-    if (!company.is_active && company.current_stage === 'L5') {
-      return 'Acquired';
-    }
-    return company.current_stage;
+  const getDisplayStage = (company: MasterDataCompany): DealStage | 'Acquired' | null => {
+    return company.pipeline_stage;
   };
 
-  const uniqueSectors = [...new Set(companies.map(c => c.sector).filter(Boolean))];
+  const uniqueSectors = [...new Set(companies.map(c => c.segment).filter(Boolean))];
 
   const filteredCompanies = companies.filter(company => {
-    const matchesSearch = company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.sector.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = company.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (company.segment || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const displayStage = getDisplayStage(company);
     const matchesStage = stageFilter === 'all' || displayStage === stageFilter;
-    const matchesSector = sectorFilter === 'all' || company.sector === sectorFilter;
-    const matchesSource = sourceFilter === 'all' || company.source === sourceFilter;
+    const matchesSector = sectorFilter === 'all' || company.segment === sectorFilter;
 
-    return matchesSearch && matchesStage && matchesSector && matchesSource;
+    return matchesSearch && matchesStage && matchesSector;
   });
 
   const stats = {
     total: companies.length,
-    active: companies.filter(c => c.is_active).length,
-    acquired: companies.filter(c => !c.is_active && c.current_stage === 'L5').length,
+    inPipeline: companies.filter(c => c.pipeline_stage !== null).length,
+    notInPipeline: companies.filter(c => c.pipeline_stage === null).length,
     byStage: {
-      L0: companies.filter(c => c.current_stage === 'L0' && c.is_active).length,
-      L1: companies.filter(c => c.current_stage === 'L1' && c.is_active).length,
-      L2: companies.filter(c => c.current_stage === 'L2' && c.is_active).length,
-      L3: companies.filter(c => c.current_stage === 'L3' && c.is_active).length,
-      L4: companies.filter(c => c.current_stage === 'L4' && c.is_active).length,
-      L5: companies.filter(c => c.current_stage === 'L5' && c.is_active).length,
+      L0: companies.filter(c => c.pipeline_stage === 'L0').length,
+      L1: companies.filter(c => c.pipeline_stage === 'L1').length,
+      L2: companies.filter(c => c.pipeline_stage === 'L2').length,
+      L3: companies.filter(c => c.pipeline_stage === 'L3').length,
+      L4: companies.filter(c => c.pipeline_stage === 'L4').length,
+      L5: companies.filter(c => c.pipeline_stage === 'L5').length,
     },
   };
 
@@ -225,18 +209,18 @@ export default function MasterData() {
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-blue-500" />
-                <span className="text-sm text-muted-foreground">Active</span>
+                <span className="text-sm text-muted-foreground">In Pipeline</span>
               </div>
-              <p className="text-2xl font-bold mt-1">{stats.active}</p>
+              <p className="text-2xl font-bold mt-1">{stats.inPipeline}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="text-sm text-muted-foreground">Acquired</span>
+                <span className="text-sm text-muted-foreground">Not in Pipeline</span>
               </div>
-              <p className="text-2xl font-bold mt-1">{stats.acquired}</p>
+              <p className="text-2xl font-bold mt-1">{stats.notInPipeline}</p>
             </CardContent>
           </Card>
           <Card className="col-span-2">
@@ -294,16 +278,6 @@ export default function MasterData() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  <SelectItem value="inbound">Inbound</SelectItem>
-                  <SelectItem value="outbound">Outbound</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
@@ -328,56 +302,47 @@ export default function MasterData() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Company</TableHead>
-                      <TableHead>Sector</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Rev Y1</TableHead>
-                      <TableHead className="text-right">Rev Y2</TableHead>
-                      <TableHead className="text-right">Rev Y3</TableHead>
+                      <TableHead>Segment</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead className="text-right">Rev 2022</TableHead>
+                      <TableHead className="text-right">Rev 2023</TableHead>
+                      <TableHead className="text-right">Rev 2024</TableHead>
                       <TableHead className="text-center">Trend</TableHead>
-                      <TableHead className="text-right">EBITDA Y1</TableHead>
-                      <TableHead className="text-right">EBITDA Y2</TableHead>
-                      <TableHead className="text-right">EBITDA Y3</TableHead>
-                      <TableHead className="text-right">Valuation</TableHead>
+                      <TableHead className="text-right">EBITDA 2022</TableHead>
+                      <TableHead className="text-right">EBITDA 2023</TableHead>
+                      <TableHead className="text-right">EBITDA 2024</TableHead>
+                      <TableHead className="text-right">EV 2024</TableHead>
                       <TableHead>Added</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredCompanies.map((company) => {
                       const displayStage = getDisplayStage(company);
-                      const revenueChange = getRevenueChange(company.revenue_year2, company.revenue_year3);
+                      const revenueChange = getRevenueChange(company.revenue_2023_usd_mn, company.revenue_2024_usd_mn);
 
                       return (
-                        <TableRow key={company.deal_id}>
-                          <TableCell className="font-medium">{company.name}</TableCell>
+                        <TableRow key={company.id}>
+                          <TableCell className="font-medium">{company.target}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{company.sector}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="capitalize">
-                              {company.source}
-                            </Badge>
+                            <Badge variant="outline">{company.segment}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={`${stageColors[displayStage]} text-white`}>
-                              {displayStage === 'Acquired' ? (
-                                <span className="flex items-center gap-1">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Acquired
-                                </span>
-                              ) : (
-                                `${displayStage} - ${stageLabels[displayStage]}`
-                              )}
-                            </Badge>
+                            {displayStage ? (
+                              <Badge className={`${stageColors[displayStage as DealStage]} text-white`}>
+                                {`${displayStage} - ${stageLabels[displayStage as DealStage]}`}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Not in Pipeline</Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.revenue_year1)}
+                            {formatCurrency(company.revenue_2022_usd_mn)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.revenue_year2)}
+                            {formatCurrency(company.revenue_2023_usd_mn)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.revenue_year3)}
+                            {formatCurrency(company.revenue_2024_usd_mn)}
                           </TableCell>
                           <TableCell className="text-center">
                             {revenueChange.direction === 'up' && (
@@ -397,16 +362,16 @@ export default function MasterData() {
                             )}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.ebitda_year1)}
+                            {formatCurrency(company.ebitda_2022_usd_mn)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.ebitda_year2)}
+                            {formatCurrency(company.ebitda_2023_usd_mn)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.ebitda_year3)}
+                            {formatCurrency(company.ebitda_2024_usd_mn)}
                           </TableCell>
                           <TableCell className="text-right font-mono">
-                            {formatCurrency(company.valuation)}
+                            {formatCurrency(company.ev_2024)}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {new Date(company.created_at).toLocaleDateString()}

@@ -40,6 +40,8 @@ export type Database = {
       companies: {
         Row: {
           id: string
+          // Pipeline Stage
+          pipeline_stage: string | null
           // Details Section
           entry_id: number | null
           watchlist_id: number | null
@@ -127,6 +129,8 @@ export type Database = {
         }
         Insert: {
           id?: string
+          // Pipeline Stage
+          pipeline_stage?: string | null
           // Details Section
           entry_id?: number | null
           watchlist_id?: number | null
@@ -214,6 +218,8 @@ export type Database = {
         }
         Update: {
           id?: string
+          // Pipeline Stage
+          pipeline_stage?: string | null
           // Details Section
           entry_id?: number | null
           watchlist_id?: number | null
