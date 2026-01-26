@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import {
   User,
   Plus,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,6 +59,41 @@ const formatCurrency = (value: number | null) => {
   return `$${value.toFixed(1)}M`;
 };
 
+// LocalStorage key for AI Discovery chat history
+const AI_DISCOVERY_STORAGE_KEY = 'mna-ai-discovery-history';
+
+// Save chat history to localStorage
+const saveChatHistory = (messages: Message[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(AI_DISCOVERY_STORAGE_KEY, JSON.stringify(messages));
+  } catch (error) {
+    console.warn('Failed to save AI Discovery chat history to localStorage:', error);
+  }
+};
+
+// Load chat history from localStorage
+const loadChatHistory = (): Message[] | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(AI_DISCOVERY_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.warn('Failed to load AI Discovery chat history from localStorage:', error);
+    return null;
+  }
+};
+
+// Clear chat history from localStorage
+const clearChatHistory = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(AI_DISCOVERY_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Failed to clear AI Discovery chat history from localStorage:', error);
+  }
+};
+
 // Generate a unique session ID for conversation history
 const getSessionId = () => {
   if (typeof window === 'undefined') return 'default';
@@ -67,6 +103,13 @@ const getSessionId = () => {
     sessionStorage.setItem('chat-session-id', sessionId);
   }
   return sessionId;
+};
+
+// Reset the session ID to start a fresh conversation with the API
+const resetSessionId = () => {
+  if (typeof window === 'undefined') return;
+  const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  sessionStorage.setItem('chat-session-id', newSessionId);
 };
 
 // Call the AI agent API
@@ -129,13 +172,40 @@ export default function AIDiscovery() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [addedCompanies, setAddedCompanies] = useState<Set<string>>(new Set());
+  const [isInitialized, setIsInitialized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history from localStorage on mount
+  useEffect(() => {
+    const savedHistory = loadChatHistory();
+    if (savedHistory && savedHistory.length > 0) {
+      setMessages(savedHistory);
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save chat history to localStorage whenever messages change (only after initialization)
+  useEffect(() => {
+    if (isInitialized) {
+      saveChatHistory(messages);
+    }
+  }, [messages, isInitialized]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Clear chat history handler
+  const handleClearHistory = useCallback(() => {
+    clearChatHistory();
+    resetSessionId(); // Reset session ID so API starts fresh conversation
+    setMessages([initialMessage]);
+    setInput('');
+    setIsTyping(false);
+    toast.success('Chat history cleared');
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -208,16 +278,27 @@ export default function AIDiscovery() {
     <DashboardLayout>
       <div className="flex flex-col h-screen p-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6 flex-shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
-            <Bot className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between mb-6 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
+              <Bot className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">AI Discovery</h1>
+              <p className="text-muted-foreground">
+                Discover targets, analyze companies, compare synergies, and track pipeline
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">AI Discovery</h1>
-            <p className="text-muted-foreground">
-              Discover targets, analyze companies, compare synergies, and track pipeline
-            </p>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleClearHistory}
+            className="text-muted-foreground hover:text-destructive hover:border-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Clear History
+          </Button>
         </div>
 
         {/* Chat Area */}
