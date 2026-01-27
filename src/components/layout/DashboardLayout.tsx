@@ -30,6 +30,7 @@ import { ChatbotWidget } from '@/components/chat/ChatbotWidget';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -101,18 +102,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </SidebarGroup>
             </SidebarContent>
 
+
+
             <SidebarFooter className="border-t border-sidebar-border p-4">
-              <div className="flex flex-col gap-2">
-                {user && (
-                  <div className="flex flex-col">
-                    <p className="truncate text-sm font-medium text-sidebar-foreground">
-                      {user.name}
-                    </p>
-                    <p className="truncate text-xs text-sidebar-foreground/60">
-                      {user.email}
-                    </p>
-                  </div>
-                )}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  {user && (
+                    <div className="flex flex-col">
+                      <p className="truncate text-sm font-medium text-sidebar-foreground">
+                        {user.name}
+                      </p>
+                      <p className="truncate text-xs text-sidebar-foreground/60">
+                        {user.email}
+                      </p>
+                    </div>
+                  )}
+                  <ThemeToggle />
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
