@@ -251,7 +251,7 @@ export default function ScreeningProgressPanel({
   }
 
   return (
-    <Card className="border-purple-200 bg-gradient-to-r from-purple-50/50 to-blue-50/50">
+    <Card className="border-purple-200 bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-950/20 dark:to-blue-950/20 dark:border-purple-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -264,7 +264,7 @@ export default function ScreeningProgressPanel({
             </div>
           </div>
           {passedCount > 0 && (
-            <Badge variant="secondary" className="bg-green-100 text-green-700">
+            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
               {passedCount} ready for L1
             </Badge>
           )}
@@ -282,7 +282,7 @@ export default function ScreeningProgressPanel({
               {inProgress.map((summary) => (
                 <div
                   key={summary.company_id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-yellow-50 border-yellow-200"
+                  className="flex items-center justify-between p-3 rounded-lg border bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-900/50"
                 >
                   <div className="flex items-center gap-3">
                     <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
@@ -300,8 +300,8 @@ export default function ScreeningProgressPanel({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span className="text-green-600">{summary.passed_criteria}✓</span>
-                      <span className="text-red-600">{summary.failed_criteria}✗</span>
+                      <span className="text-green-600 dark:text-green-400">{summary.passed_criteria}✓</span>
+                      <span className="text-red-600 dark:text-red-400">{summary.failed_criteria}✗</span>
                       {summary.inconclusive_criteria > 0 && (
                         <span className="text-amber-600 flex items-center">
                           {summary.inconclusive_criteria}<HelpCircle className="h-3 w-3 ml-0.5" />
@@ -330,15 +330,15 @@ export default function ScreeningProgressPanel({
                 <div
                   key={summary.company_id}
                   className={`flex items-center justify-between p-3 rounded-lg border ${summary.all_passed
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-red-50 border-red-200'
+                    ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900/50'
+                    : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/50'
                     }`}
                 >
                   <div className="flex items-center gap-3">
                     {summary.all_passed ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-red-600" />
+                      <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                     )}
                     <div>
                       <button
@@ -354,8 +354,8 @@ export default function ScreeningProgressPanel({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span className="text-green-600">{summary.passed_criteria}✓</span>
-                      <span className="text-red-600">{summary.failed_criteria}✗</span>
+                      <span className="text-green-600 dark:text-green-400">{summary.passed_criteria}✓</span>
+                      <span className="text-red-600 dark:text-red-400">{summary.failed_criteria}✗</span>
                       {summary.inconclusive_criteria > 0 && (
                         <span className="text-amber-600 flex items-center">
                           {summary.inconclusive_criteria}<HelpCircle className="h-3 w-3 ml-0.5" />

@@ -374,7 +374,7 @@ export default function AIScreeningDialog({
                 >
                   <Badge
                     variant="secondary"
-                    className="shrink-0 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-blue-100 text-blue-700"
+                    className="shrink-0 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
                   >
                     {index + 1}
                   </Badge>
@@ -428,7 +428,7 @@ export default function AIScreeningDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
                           onClick={() => deleteCriterion(index)}
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-1" />
