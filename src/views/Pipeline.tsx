@@ -95,7 +95,7 @@ const stageDescriptions: Record<DealStage, string> = {
 };
 
 const stageColors: Record<DealStage, { bg: string; text: string; bgLight: string; textLight: string }> = {
-  L0: { bg: 'bg-stage-l0', text: 'text-white', bgLight: 'bg-stage-l0/15', textLight: 'text-stage-l0' },
+  L0: { bg: 'bg-stage-l0', text: 'text-white', bgLight: 'bg-stage-l0/15', textLight: 'text-foreground' },
   L1: { bg: 'bg-stage-l1', text: 'text-white', bgLight: 'bg-stage-l1/15', textLight: 'text-stage-l1' },
   L2: { bg: 'bg-stage-l2', text: 'text-white', bgLight: 'bg-stage-l2/15', textLight: 'text-stage-l2' },
   L3: { bg: 'bg-stage-l3', text: 'text-white', bgLight: 'bg-stage-l3/15', textLight: 'text-stage-l3' },

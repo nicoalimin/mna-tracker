@@ -30,7 +30,7 @@
     --radius: 0.5rem;
 
     /* Pipeline stage colors */
-    --stage-l0: 210 40% 96.1%;
+    --stage-l0: 0 0% 0%;
     --stage-l1: 199 89% 48%;
     --stage-l2: 262 83% 58%;
     --stage-l3: 24 95% 53%;
@@ -82,7 +82,7 @@
     --ring: 212.7 26.8% 83.9%;
 
     /* Pipeline stage colors - dark mode */
-    --stage-l0: 217 32.6% 17.5%;
+    --stage-l0: 0 0% 0%;
     --stage-l1: 199 89% 48%;
     --stage-l2: 262 83% 58%;
     --stage-l3: 24 95% 53%;
@@ -113,6 +113,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
