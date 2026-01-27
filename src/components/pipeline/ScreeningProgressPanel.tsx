@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Sparkles,
   ArrowRight,
+  HelpCircle,
 } from 'lucide-react';
 
 interface Screening {
@@ -40,6 +41,7 @@ interface CompanyScreeningSummary {
   completed_criteria: number;
   passed_criteria: number;
   failed_criteria: number;
+  inconclusive_criteria: number;
   pending_criteria: number;
   all_passed: boolean;
   screenings: Screening[];
@@ -48,11 +50,13 @@ interface CompanyScreeningSummary {
 interface ScreeningProgressPanelProps {
   refreshTrigger?: number;
   onScreeningComplete?: () => void;
+  onCompanyClick?: (companyId: string) => void;
 }
 
 export default function ScreeningProgressPanel({
   refreshTrigger = 0,
   onScreeningComplete,
+  onCompanyClick,
 }: ScreeningProgressPanelProps) {
   const [screenings, setScreenings] = useState<Screening[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,15 @@ export default function ScreeningProgressPanel({
     };
   }, []);
 
+  // Poll every 5 seconds as fallback for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchScreenings();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Group screenings by company
   const groupByCompany = (screenings: Screening[]): CompanyScreeningSummary[] => {
     const grouped = new Map<string, CompanyScreeningSummary>();
@@ -134,6 +147,7 @@ export default function ScreeningProgressPanel({
           completed_criteria: 0,
           passed_criteria: 0,
           failed_criteria: 0,
+          inconclusive_criteria: 0,
           pending_criteria: 0,
           all_passed: false,
           screenings: [],
@@ -150,6 +164,8 @@ export default function ScreeningProgressPanel({
           summary.passed_criteria++;
         } else if (s.result === 'fail' || s.result === 'error') {
           summary.failed_criteria++;
+        } else if (s.result === 'inconclusive') {
+          summary.inconclusive_criteria++;
         }
       } else if (s.state === 'pending') {
         summary.pending_criteria++;
@@ -271,15 +287,26 @@ export default function ScreeningProgressPanel({
                   <div className="flex items-center gap-3">
                     <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
                     <div>
-                      <span className="font-medium">{summary.company_name}</span>
+                      <button
+                        onClick={() => onCompanyClick?.(summary.company_id)}
+                        className="font-medium hover:text-primary hover:underline transition-colors text-left"
+                      >
+                        {summary.company_name}
+                      </button>
                       <div className="text-xs text-muted-foreground">
                         {summary.completed_criteria} / {summary.total_criteria} criteria evaluated
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {summary.passed_criteria}✓ {summary.failed_criteria}✗
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="text-green-600">{summary.passed_criteria}✓</span>
+                      <span className="text-red-600">{summary.failed_criteria}✗</span>
+                      {summary.inconclusive_criteria > 0 && (
+                        <span className="text-amber-600 flex items-center">
+                          {summary.inconclusive_criteria}<HelpCircle className="h-3 w-3 ml-0.5" />
+                        </span>
+                      )}
                     </span>
                     <Badge variant="secondary">
                       In Progress
@@ -314,15 +341,26 @@ export default function ScreeningProgressPanel({
                       <XCircle className="h-4 w-4 text-red-600" />
                     )}
                     <div>
-                      <span className="font-medium">{summary.company_name}</span>
+                      <button
+                        onClick={() => onCompanyClick?.(summary.company_id)}
+                        className="font-medium hover:text-primary hover:underline transition-colors text-left"
+                      >
+                        {summary.company_name}
+                      </button>
                       <div className="text-xs text-muted-foreground">
                         {summary.total_criteria} criteria evaluated
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {summary.passed_criteria}✓ {summary.failed_criteria}✗
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="text-green-600">{summary.passed_criteria}✓</span>
+                      <span className="text-red-600">{summary.failed_criteria}✗</span>
+                      {summary.inconclusive_criteria > 0 && (
+                        <span className="text-amber-600 flex items-center">
+                          {summary.inconclusive_criteria}<HelpCircle className="h-3 w-3 ml-0.5" />
+                        </span>
+                      )}
                     </span>
                     {summary.all_passed ? (
                       <Button

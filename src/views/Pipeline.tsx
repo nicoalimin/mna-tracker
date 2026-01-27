@@ -517,6 +517,12 @@ export default function Pipeline() {
                         onScreeningComplete={() => {
                           fetchCompanies();
                         }}
+                        onCompanyClick={(companyId) => {
+                          const company = companies.find((c) => c.id === companyId);
+                          if (company) {
+                            setSelectedCompany(company);
+                          }
+                        }}
                       />
 
                       {/* Existing L0 Pipeline */}
