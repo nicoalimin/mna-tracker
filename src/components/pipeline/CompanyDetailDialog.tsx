@@ -45,22 +45,22 @@ import {
   Legend,
 } from 'recharts';
 
-interface CompanyWithDeal {
+interface CompanyData {
   id: string;
-  company_id: string;
-  name: string;
-  sector: string;
-  source: string;
-  revenue_year1: number | null;
-  revenue_year2: number | null;
-  revenue_year3: number | null;
-  ebitda_year1: number | null;
-  ebitda_year2: number | null;
-  ebitda_year3: number | null;
-  valuation: number | null;
-  current_stage: DealStage;
-  l1_status: L1Status | null;
-  l1_filter_results: any;
+  target: string | null;
+  segment: string | null;
+  watchlist_status: string | null;
+  pipeline_stage: string | null;
+  revenue_2021_usd_mn: number | null;
+  revenue_2022_usd_mn: number | null;
+  revenue_2023_usd_mn: number | null;
+  revenue_2024_usd_mn: number | null;
+  ebitda_2021_usd_mn: number | null;
+  ebitda_2022_usd_mn: number | null;
+  ebitda_2023_usd_mn: number | null;
+  ebitda_2024_usd_mn: number | null;
+  ev_2024: number | null;
+  l1_screening_result: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -112,7 +112,7 @@ interface Screening {
 }
 
 interface CompanyDetailDialogProps {
-  company: CompanyWithDeal;
+  company: CompanyData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
@@ -216,7 +216,7 @@ export default function CompanyDetailDialog({
       const { error } = await supabase.from('deal_notes').insert({
         deal_id: company.id,
         content: newNote,
-        stage: company.current_stage,
+        stage: company.pipeline_stage || 'L0',
       });
       if (error) throw error;
       setNewNote('');
@@ -237,7 +237,7 @@ export default function CompanyDetailDialog({
         deal_id: company.id,
         url: newLinkUrl,
         title: newLinkTitle || null,
-        stage: company.current_stage,
+        stage: company.pipeline_stage || 'L0',
       });
       if (error) throw error;
       setNewLinkUrl('');
@@ -270,7 +270,7 @@ export default function CompanyDetailDialog({
         file_path: filePath,
         file_size: file.size,
         mime_type: file.type,
-        stage: company.current_stage,
+        stage: company.pipeline_stage || 'L0',
       });
 
       if (dbError) throw dbError;
@@ -340,15 +340,17 @@ export default function CompanyDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl">
             <Building2 className="h-6 w-6" />
-            {company.name}
+            {company.target || 'Unknown Company'}
           </DialogTitle>
           <DialogDescription asChild>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">{company.sector}</Badge>
-              <Badge variant={company.source === 'inbound' ? 'default' : 'secondary'}>
-                {company.source}
-              </Badge>
-              <Badge variant="secondary">{company.current_stage}</Badge>
+              {company.segment && <Badge variant="outline">{company.segment}</Badge>}
+              {company.watchlist_status && (
+                <Badge variant={company.watchlist_status === 'Active' ? 'default' : 'secondary'}>
+                  {company.watchlist_status}
+                </Badge>
+              )}
+              <Badge variant="secondary">{company.pipeline_stage || 'L0'}</Badge>
             </div>
           </DialogDescription>
         </DialogHeader>
@@ -376,35 +378,39 @@ export default function CompanyDetailDialog({
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-muted-foreground">Company Name</p>
-                      <p className="font-semibold text-lg">{company.name}</p>
+                      <p className="font-semibold text-lg">{company.target || 'Unknown'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Sector</p>
-                      <p className="font-medium">{company.sector}</p>
+                      <p className="text-sm text-muted-foreground">Segment</p>
+                      <p className="font-medium">{company.segment || '-'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Source</p>
-                      <Badge variant={company.source === 'inbound' ? 'default' : 'secondary'}>
-                        {company.source}
-                      </Badge>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      {company.watchlist_status ? (
+                        <Badge variant={company.watchlist_status === 'Active' ? 'default' : 'secondary'}>
+                          {company.watchlist_status}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Stage</p>
+                      <p className="text-sm text-muted-foreground">Pipeline Stage</p>
                       <Badge variant="outline" className="text-base px-3 py-1">
-                        {company.current_stage}
+                        {company.pipeline_stage || 'L0'}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Enterprise Valuation</p>
-                      <p className="font-semibold text-2xl text-primary">{formatCurrency(company.valuation)}</p>
+                      <p className="text-sm text-muted-foreground">Enterprise Value (2024)</p>
+                      <p className="font-semibold text-2xl text-primary">{formatCurrency(company.ev_2024)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">L1 Status</p>
-                      {company.l1_status ? (
-                        <Badge variant={company.l1_status === 'Pass' ? 'default' : 'destructive'}>
-                          {company.l1_status}
+                      <p className="text-sm text-muted-foreground">L1 Screening Result</p>
+                      {company.l1_screening_result ? (
+                        <Badge variant={company.l1_screening_result.toLowerCase() === 'pass' ? 'default' : 'destructive'}>
+                          {company.l1_screening_result}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground text-sm">Not screened yet</span>
@@ -420,7 +426,7 @@ export default function CompanyDetailDialog({
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
-                  Revenue (3 Years)
+                  Revenue (USD Millions)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -428,20 +434,20 @@ export default function CompanyDetailDialog({
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={[
-                        { year: '2023', revenue: company.revenue_year1 || 0 },
-                        { year: '2024', revenue: company.revenue_year2 || 0 },
-                        { year: '2025', revenue: company.revenue_year3 || 0 },
+                        { year: '2022', revenue: company.revenue_2022_usd_mn || 0 },
+                        { year: '2023', revenue: company.revenue_2023_usd_mn || 0 },
+                        { year: '2024', revenue: company.revenue_2024_usd_mn || 0 },
                       ]}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="year" className="text-sm" />
                       <YAxis
-                        tickFormatter={(value) => `$${(value / 1_000_000).toFixed(0)}M`}
+                        tickFormatter={(value) => `$${value.toFixed(0)}M`}
                         className="text-sm"
                       />
                       <Tooltip
-                        formatter={(value: number) => [formatCurrency(value), 'Revenue']}
+                        formatter={(value: number) => [`$${value.toFixed(1)}M`, 'Revenue']}
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
@@ -465,7 +471,7 @@ export default function CompanyDetailDialog({
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
-                  EBITDA (3 Years)
+                  EBITDA (USD Millions)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -473,20 +479,20 @@ export default function CompanyDetailDialog({
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={[
-                        { year: '2023', ebitda: company.ebitda_year1 || 0 },
-                        { year: '2024', ebitda: company.ebitda_year2 || 0 },
-                        { year: '2025', ebitda: company.ebitda_year3 || 0 },
+                        { year: '2022', ebitda: company.ebitda_2022_usd_mn || 0 },
+                        { year: '2023', ebitda: company.ebitda_2023_usd_mn || 0 },
+                        { year: '2024', ebitda: company.ebitda_2024_usd_mn || 0 },
                       ]}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="year" className="text-sm" />
                       <YAxis
-                        tickFormatter={(value) => `$${(value / 1_000_000).toFixed(1)}M`}
+                        tickFormatter={(value) => `$${value.toFixed(0)}M`}
                         className="text-sm"
                       />
                       <Tooltip
-                        formatter={(value: number) => [formatCurrency(value), 'EBITDA']}
+                        formatter={(value: number) => [`$${value.toFixed(1)}M`, 'EBITDA']}
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
@@ -573,15 +579,15 @@ export default function CompanyDetailDialog({
                     <div className="pt-3 border-t">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">Overall Status</span>
-                        <Badge variant={company.l1_status === 'Pass' ? 'default' : 'destructive'}>
-                          {company.l1_status || 'Pending'}
+                        <Badge variant={company.l1_screening_result?.toLowerCase() === 'pass' ? 'default' : 'destructive'}>
+                          {company.l1_screening_result || 'Pending'}
                         </Badge>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-sm">
-                    No screenings have been run yet. Click "Screen" from the L0 stage to run filters.
+                    No screenings have been run yet. Click &quot;Screen&quot; from the L0 stage to run filters.
                   </p>
                 )}
               </CardContent>
