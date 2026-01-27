@@ -96,6 +96,21 @@ interface DealDocument {
   created_at: string;
 }
 
+interface Screening {
+  id: string;
+  company_id: string;
+  criteria_id: string;
+  state: 'pending' | 'completed' | 'failed';
+  result: string | null;
+  remarks: string | null;
+  created_at: string;
+  criterias: {
+    id: string;
+    name: string;
+    prompt: string;
+  };
+}
+
 interface CompanyDetailDialogProps {
   company: CompanyWithDeal;
   open: boolean;
@@ -129,6 +144,7 @@ export default function CompanyDetailDialog({
   const [notes, setNotes] = useState<DealNote[]>([]);
   const [links, setLinks] = useState<DealLink[]>([]);
   const [documents, setDocuments] = useState<DealDocument[]>([]);
+  const [screenings, setScreenings] = useState<Screening[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -146,7 +162,7 @@ export default function CompanyDetailDialog({
   const fetchDetails = async () => {
     setLoading(true);
     try {
-      const [historyRes, notesRes, linksRes, docsRes] = await Promise.all([
+      const [historyRes, notesRes, linksRes, docsRes, screeningsRes] = await Promise.all([
         supabase
           .from('deal_stage_history')
           .select('*')
@@ -167,12 +183,25 @@ export default function CompanyDetailDialog({
           .select('*')
           .eq('deal_id', company.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('screenings')
+          .select(`
+            *,
+            criterias (
+              id,
+              name,
+              prompt
+            )
+          `)
+          .eq('company_id', company.id)
+          .order('created_at', { ascending: false }),
       ]);
 
       if (historyRes.data) setStageHistory(historyRes.data);
       if (notesRes.data) setNotes(notesRes.data);
       if (linksRes.data) setLinks(linksRes.data);
       if (docsRes.data) setDocuments(docsRes.data);
+      if (screeningsRes.data) setScreenings(screeningsRes.data as Screening[]);
     } catch (error) {
       console.error('Error fetching details:', error);
     } finally {
@@ -313,12 +342,14 @@ export default function CompanyDetailDialog({
             <Building2 className="h-6 w-6" />
             {company.name}
           </DialogTitle>
-          <DialogDescription className="flex items-center gap-2">
-            <Badge variant="outline">{company.sector}</Badge>
-            <Badge variant={company.source === 'inbound' ? 'default' : 'secondary'}>
-              {company.source}
-            </Badge>
-            <Badge variant="secondary">{company.current_stage}</Badge>
+          <DialogDescription asChild>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{company.sector}</Badge>
+              <Badge variant={company.source === 'inbound' ? 'default' : 'secondary'}>
+                {company.source}
+              </Badge>
+              <Badge variant="secondary">{company.current_stage}</Badge>
+            </div>
           </DialogDescription>
         </DialogHeader>
 
@@ -515,24 +546,30 @@ export default function CompanyDetailDialog({
                 <CardTitle className="text-lg">L1 Filter Results</CardTitle>
               </CardHeader>
               <CardContent>
-                {company.l1_filter_results ? (
+                {screenings.length > 0 ? (
                   <div className="space-y-3">
-                    <FilterResult
-                      label="EBITDA Margin >10%"
-                      passed={company.l1_filter_results.ebitda_margin_pass}
-                    />
-                    <FilterResult
-                      label="Revenue Not Declining"
-                      passed={company.l1_filter_results.revenue_not_declining}
-                    />
-                    <FilterResult
-                      label="Valuation <$1B"
-                      passed={company.l1_filter_results.valuation_under_1b}
-                    />
-                    <FilterResult
-                      label="Not a Duplicate"
-                      passed={!company.l1_filter_results.is_duplicate}
-                    />
+                    {screenings.map((screening) => (
+                      <div key={screening.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{screening.criterias?.name || 'Unknown Criteria'}</span>
+                            <Badge
+                              variant={screening.state === 'completed' ? 'outline' : screening.state === 'pending' ? 'secondary' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {screening.state}
+                            </Badge>
+                          </div>
+                          {screening.result && (
+                            <p className="text-sm text-muted-foreground mt-1">{screening.result}</p>
+                          )}
+                          {screening.remarks && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">{screening.remarks}</p>
+                          )}
+                        </div>
+                        <ScreeningStateIcon state={screening.state} result={screening.result} />
+                      </div>
+                    ))}
                     <div className="pt-3 border-t">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">Overall Status</span>
@@ -544,7 +581,7 @@ export default function CompanyDetailDialog({
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-sm">
-                    Filters have not been run yet. Click "Screen" from the L0 stage to run filters.
+                    No screenings have been run yet. Click "Screen" from the L0 stage to run filters.
                   </p>
                 )}
               </CardContent>
@@ -730,3 +767,31 @@ function FilterResult({ label, passed }: { label: string; passed: boolean }) {
     </div>
   );
 }
+
+function ScreeningStateIcon({ state, result }: { state: 'pending' | 'completed' | 'failed'; result: string | null }) {
+  if (state === 'pending') {
+    return (
+      <div className="flex items-center gap-1 text-yellow-600">
+        <AlertCircle className="h-4 w-4" />
+        <span className="text-sm font-medium">Pending</span>
+      </div>
+    );
+  }
+  if (state === 'failed') {
+    return (
+      <div className="flex items-center gap-1 text-red-600">
+        <XCircle className="h-4 w-4" />
+        <span className="text-sm font-medium">Failed</span>
+      </div>
+    );
+  }
+  // For completed state, check the result
+  const isPassed = result?.toLowerCase() === 'pass' || result?.toLowerCase() === 'yes';
+  return (
+    <div className={`flex items-center gap-1 ${isPassed ? 'text-green-600' : 'text-red-600'}`}>
+      {isPassed ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+      <span className="text-sm font-medium">{isPassed ? 'Pass' : 'Fail'}</span>
+    </div>
+  );
+}
+
