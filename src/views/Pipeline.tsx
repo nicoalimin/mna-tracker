@@ -61,6 +61,7 @@ import CompanyDetailDialog from '@/components/pipeline/CompanyDetailDialog';
 import AIScreeningDialog from '@/components/pipeline/AIScreeningDialog';
 import MarketScreeningStatus from '@/components/pipeline/MarketScreeningStatus';
 import MarketScreeningResults from '@/components/pipeline/MarketScreeningResults';
+import ScreeningProgressPanel from '@/components/pipeline/ScreeningProgressPanel';
 
 interface PipelineCompany {
   id: string;
@@ -168,6 +169,7 @@ export default function Pipeline() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showScreeningDialog, setShowScreeningDialog] = useState(false);
   const [marketScreeningRefresh, setMarketScreeningRefresh] = useState(0);
+  const [screeningProgressRefresh, setScreeningProgressRefresh] = useState(0);
   const [newCandidatesCount, setNewCandidatesCount] = useState(0);
 
   // Sorting state
@@ -458,16 +460,16 @@ export default function Pipeline() {
                 key={stage}
                 value={stage}
                 className={`relative transition-all ${activeTab === stage
-                    ? `${stageColors[stage].bg} ${stageColors[stage].text} data-[state=active]:${stageColors[stage].bg} data-[state=active]:${stageColors[stage].text}`
-                    : `${stageColors[stage].bgLight} ${stageColors[stage].textLight} hover:opacity-80`
+                  ? `${stageColors[stage].bg} ${stageColors[stage].text} data-[state=active]:${stageColors[stage].bg} data-[state=active]:${stageColors[stage].text}`
+                  : `${stageColors[stage].bgLight} ${stageColors[stage].textLight} hover:opacity-80`
                   }`}
               >
                 {stage}
                 <Badge
                   variant="secondary"
                   className={`ml-2 h-5 min-w-5 px-1.5 text-xs ${activeTab === stage
-                      ? 'bg-white/20 text-white'
-                      : `${stageColors[stage].bg} text-white`
+                    ? 'bg-white/20 text-white'
+                    : `${stageColors[stage].bg} text-white`
                     }`}
                 >
                   {stageCount(stage)}
@@ -506,6 +508,14 @@ export default function Pipeline() {
                         onAddedToPipeline={() => {
                           fetchCompanies();
                           fetchNewCandidatesCount();
+                        }}
+                      />
+
+                      {/* AI Screening Progress Panel */}
+                      <ScreeningProgressPanel
+                        refreshTrigger={screeningProgressRefresh}
+                        onScreeningComplete={() => {
+                          fetchCompanies();
                         }}
                       />
 
@@ -908,6 +918,7 @@ export default function Pipeline() {
           companies={getSelectedCompaniesForScreening()}
           onComplete={() => {
             setSelectedIds(new Set());
+            setScreeningProgressRefresh((prev) => prev + 1);
             fetchCompanies();
           }}
         />

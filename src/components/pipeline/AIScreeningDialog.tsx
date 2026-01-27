@@ -16,38 +16,22 @@ import { toast } from 'sonner';
 interface Company {
   id: string;
   name: string;
-  sector: string;
-  revenue_year1: number | null;
-  revenue_year2: number | null;
-  revenue_year3: number | null;
-  ebitda_year1: number | null;
-  ebitda_year2: number | null;
-  ebitda_year3: number | null;
-  valuation: number | null;
-  source: string;
+  target?: string | null;
+  segment?: string | null;
+  geography?: string | null;
+  company_focus?: string | null;
+  ownership?: string | null;
+  website?: string | null;
+  revenue_2022_usd_mn?: number | null;
+  revenue_2023_usd_mn?: number | null;
+  revenue_2024_usd_mn?: number | null;
+  ebitda_2022_usd_mn?: number | null;
+  ebitda_2023_usd_mn?: number | null;
+  ebitda_2024_usd_mn?: number | null;
+  ev_2024?: number | null;
 }
 
-interface CriterionResult {
-  criterion: string;
-  passed: boolean;
-  reason: string;
-}
 
-interface CompanyResult {
-  company_id: string;
-  company_name: string;
-  passes: boolean;
-  criteria_results: CriterionResult[];
-}
-
-interface ScreeningResults {
-  results: CompanyResult[];
-  summary: {
-    total_evaluated: number;
-    total_passed: number;
-    total_failed: number;
-  };
-}
 
 interface AIScreeningDialogProps {
   open: boolean;
@@ -74,8 +58,6 @@ export default function AIScreeningDialog({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isScreening, setIsScreening] = useState(false);
-  const [results, setResults] = useState<ScreeningResults | null>(null);
-  const [isMoving, setIsMoving] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch criteria from database on mount
@@ -132,7 +114,7 @@ export default function AIScreeningDialog({
 
   const deleteCriterion = async (index: number) => {
     const criterionToDelete = criteria[index];
-    
+
     try {
       const { error } = await supabase
         .from('criterias')
@@ -142,7 +124,6 @@ export default function AIScreeningDialog({
       if (error) throw error;
 
       setCriteria(criteria.filter((_, i) => i !== index));
-      setResults(null); // Clear results when criteria change
       toast.success('Criterion deleted');
     } catch (error: any) {
       console.error('Error deleting criterion:', error);
@@ -181,7 +162,6 @@ export default function AIScreeningDialog({
       setCriteria(newCriteria);
       setEditingIndex(null);
       setEditValue('');
-      setResults(null);
       toast.success('Criterion updated');
     } catch (error: any) {
       console.error('Error updating criterion:', error);
@@ -202,89 +182,136 @@ export default function AIScreeningDialog({
       return;
     }
 
+    if (companies.length === 0) {
+      toast.error('No companies selected for screening');
+      return;
+    }
+
     setIsScreening(true);
-    setResults(null);
 
     try {
-      // Extract just the prompt strings to send to the AI
-      const criteriaPrompts = criteria.map((c) => c.prompt);
-      
-      const { data, error } = await supabase.functions.invoke('ai-screening', {
-        body: { companies, criteria: criteriaPrompts },
+      // Step 1: Create pending screening entries for all company × criteria combinations
+      const screeningEntries: { id: string; company_id: string; criteria_id: string }[] = [];
+      const insertPromises: Promise<any>[] = [];
+
+      for (const company of companies) {
+        for (const criterion of criteria) {
+          // Check if screening already exists
+          const { data: existing } = await supabase
+            .from('screenings')
+            .select('id')
+            .eq('company_id', company.id)
+            .eq('criteria_id', criterion.id)
+            .single();
+
+          if (existing) {
+            // Update existing to pending
+            const promise = Promise.resolve(
+              supabase
+                .from('screenings')
+                .update({ state: 'pending', result: null, remarks: null })
+                .eq('id', existing.id)
+                .select()
+                .single()
+            );
+            insertPromises.push(promise);
+          } else {
+            // Insert new pending entry
+            const promise = Promise.resolve(
+              supabase
+                .from('screenings')
+                .insert({
+                  company_id: company.id,
+                  criteria_id: criterion.id,
+                  state: 'pending',
+                })
+                .select()
+                .single()
+            );
+            insertPromises.push(promise);
+          }
+        }
+      }
+
+      const insertResults = await Promise.all(insertPromises);
+      for (const result of insertResults) {
+        if (result.data) {
+          screeningEntries.push(result.data);
+        }
+      }
+
+      toast.success(`Started AI screening for ${companies.length} companies with ${criteria.length} criteria`);
+
+      // Close the dialog immediately - progress will be shown in Pipeline view
+      onOpenChange(false);
+      onComplete();
+
+      // Step 2: Fire off AI API calls in the background (don't await)
+      screeningEntries.forEach(async (entry) => {
+        const company = companies.find((c) => c.id === entry.company_id);
+        const criterion = criteria.find((c) => c.id === entry.criteria_id);
+
+        if (!company || !criterion) return;
+
+        try {
+          const response = await fetch('/api/ai-screening', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              companyId: company.id,
+              criteriaId: criterion.id,
+              criteriaPrompt: criterion.prompt,
+              company: {
+                id: company.id,
+                name: company.target || company.name,
+                segment: company.segment,
+                geography: company.geography,
+                company_focus: company.company_focus,
+                ownership: company.ownership,
+                website: company.website,
+                revenue_2022_usd_mn: company.revenue_2022_usd_mn,
+                revenue_2023_usd_mn: company.revenue_2023_usd_mn,
+                revenue_2024_usd_mn: company.revenue_2024_usd_mn,
+                ebitda_2022_usd_mn: company.ebitda_2022_usd_mn,
+                ebitda_2023_usd_mn: company.ebitda_2023_usd_mn,
+                ebitda_2024_usd_mn: company.ebitda_2024_usd_mn,
+                ev_2024: company.ev_2024,
+              },
+            }),
+          });
+
+          const data = await response.json();
+
+          // Update screening entry in database
+          const newState = data.result === 'error' ? 'failed' : 'completed';
+          await supabase
+            .from('screenings')
+            .update({
+              state: newState,
+              result: data.result,
+              remarks: data.remarks,
+            })
+            .eq('id', entry.id);
+        } catch (error) {
+          console.error(`Screening error for ${company.id}/${criterion.id}:`, error);
+          // Update as failed in database
+          await supabase
+            .from('screenings')
+            .update({
+              state: 'failed',
+              result: 'error',
+              remarks: 'API call failed',
+            })
+            .eq('id', entry.id);
+        }
       });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      setResults(data as ScreeningResults);
-      toast.success(`Screening complete: ${data.summary.total_passed} companies passed`);
     } catch (error: any) {
       console.error('Screening error:', error);
-      if (error.message?.includes('429') || error.message?.includes('Rate limit')) {
-        toast.error('Rate limit exceeded. Please try again in a moment.');
-      } else if (error.message?.includes('402') || error.message?.includes('Payment')) {
-        toast.error('Credits depleted. Please add credits to continue.');
-      } else {
-        toast.error(error.message || 'Failed to run AI screening');
-      }
+      toast.error(error.message || 'Failed to start AI screening');
     } finally {
       setIsScreening(false);
     }
   };
-
-  const moveToL1 = async () => {
-    if (!results) return;
-
-    const passingCompanies = results.results.filter((r) => r.passes);
-
-    if (passingCompanies.length === 0) {
-      toast.error('No companies passed the screening criteria');
-      return;
-    }
-
-    setIsMoving(true);
-
-    try {
-      // Update companies to move to L1 stage
-      for (const company of passingCompanies) {
-        // Update the company's pipeline stage to L1
-        const { error: updateError } = await supabase
-          .from('companies')
-          .update({
-            pipeline_stage: 'L1',
-            l1_screening_result: 'Pass',
-          })
-          .eq('id', company.company_id);
-
-        if (updateError) {
-          console.error('Error updating company:', updateError);
-          continue;
-        }
-
-        // Log the screening action
-        await supabase.from('company_logs').insert({
-          company_id: company.company_id,
-          action: 'PROMOTED_TO_L1',
-        });
-      }
-
-      toast.success(`${passingCompanies.length} companies moved to L1`);
-      onComplete();
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error moving companies:', error);
-      toast.error('Failed to move companies to L1');
-    } finally {
-      setIsMoving(false);
-    }
-  };
-
-  const passedCount = results?.summary.total_passed || 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -405,87 +432,34 @@ export default function AIScreeningDialog({
               </Button>
             </div>
           </div>
-
-          {/* Results Preview */}
-          {results && (
-            <div className="space-y-3 border-t pt-4">
-              <h4 className="font-semibold">Screening Results</h4>
-              <div className="grid gap-2 max-h-48 overflow-y-auto">
-                {results.results.map((result) => (
-                  <div
-                    key={result.company_id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${result.passes
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {result.passes ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className="font-medium">{result.company_name}</span>
-                    </div>
-                    <Badge variant={result.passes ? 'default' : 'destructive'}>
-                      {result.passes ? 'Pass' : 'Fail'}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t">
-          <span className="text-sm">
-            <span className={passedCount > 0 ? 'text-green-600 font-semibold' : 'text-muted-foreground'}>
-              {passedCount} companies
-            </span>
-            {' '}ready to move to L1
+          <span className="text-sm text-muted-foreground">
+            {companies.length} companies selected, {criteria.length} criteria
           </span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            {results ? (
-              <Button
-                onClick={moveToL1}
-                disabled={passedCount === 0 || isMoving}
-                className="bg-gradient-to-r from-purple-600 to-purple-500"
-              >
-                {isMoving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Moving...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Apply Screening & Move to L1
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                onClick={runScreening}
-                disabled={isScreening || isLoadingCriteria || criteria.length === 0}
-                className="bg-gradient-to-r from-purple-600 to-purple-500"
-              >
-                {isScreening ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Screening...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Run AI Screening
-                  </>
-                )}
-              </Button>
-            )}
+            <Button
+              onClick={runScreening}
+              disabled={isScreening || isLoadingCriteria || criteria.length === 0}
+              className="bg-gradient-to-r from-purple-600 to-purple-500"
+            >
+              {isScreening ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Run AI Screening
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </DialogContent>
