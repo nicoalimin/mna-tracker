@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+
   signOut: () => Promise<void>;
 }
 
@@ -66,50 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store user in state and localStorage
       setUser(data);
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data));
-      
+
       return { error: null };
     } catch (err) {
       return { error: err instanceof Error ? err : new Error('An unexpected error occurred') };
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
-    try {
-      // Check if email already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
 
-      if (existingUser) {
-        return { error: new Error('An account with this email already exists') };
-      }
-
-      // Insert new user
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          name,
-          email,
-          password,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        return { error: new Error(error.message) };
-      }
-
-      // Auto sign-in after registration
-      setUser(data);
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data));
-      
-      return { error: null };
-    } catch (err) {
-      return { error: err instanceof Error ? err : new Error('An unexpected error occurred') };
-    }
-  }, []);
 
   const signOut = useCallback(async () => {
     setUser(null);
@@ -117,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
