@@ -54,9 +54,11 @@ export default function AIScreeningDialog({
 }: AIScreeningDialogProps) {
   const [criteria, setCriteria] = useState<Criteria[]>([]);
   const [isLoadingCriteria, setIsLoadingCriteria] = useState(true);
-  const [newCriterion, setNewCriterion] = useState('');
+  const [newCriterionName, setNewCriterionName] = useState('');
+  const [newCriterionPrompt, setNewCriterionPrompt] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPrompt, setEditPrompt] = useState('');
   const [isScreening, setIsScreening] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -86,15 +88,15 @@ export default function AIScreeningDialog({
   }, [open]);
 
   const addCriterion = async () => {
-    if (!newCriterion.trim()) return;
+    if (!newCriterionName.trim() || !newCriterionPrompt.trim()) return;
 
     setIsSaving(true);
     try {
       const { data, error } = await supabase
         .from('criterias')
         .insert({
-          name: newCriterion.trim(),
-          prompt: newCriterion.trim(),
+          name: newCriterionName.trim(),
+          prompt: newCriterionPrompt.trim(),
         })
         .select()
         .single();
@@ -102,7 +104,8 @@ export default function AIScreeningDialog({
       if (error) throw error;
 
       setCriteria([...criteria, data]);
-      setNewCriterion('');
+      setNewCriterionName('');
+      setNewCriterionPrompt('');
       toast.success('Criterion added');
     } catch (error: any) {
       console.error('Error adding criterion:', error);
@@ -133,11 +136,12 @@ export default function AIScreeningDialog({
 
   const startEdit = (index: number) => {
     setEditingIndex(index);
-    setEditValue(criteria[index].prompt);
+    setEditName(criteria[index].name);
+    setEditPrompt(criteria[index].prompt);
   };
 
   const saveEdit = async () => {
-    if (editingIndex === null || !editValue.trim()) return;
+    if (editingIndex === null || !editName.trim() || !editPrompt.trim()) return;
 
     const criterionToUpdate = criteria[editingIndex];
     setIsSaving(true);
@@ -146,8 +150,8 @@ export default function AIScreeningDialog({
       const { error } = await supabase
         .from('criterias')
         .update({
-          name: editValue.trim(),
-          prompt: editValue.trim(),
+          name: editName.trim(),
+          prompt: editPrompt.trim(),
         })
         .eq('id', criterionToUpdate.id);
 
@@ -156,12 +160,13 @@ export default function AIScreeningDialog({
       const newCriteria = [...criteria];
       newCriteria[editingIndex] = {
         ...criterionToUpdate,
-        name: editValue.trim(),
-        prompt: editValue.trim(),
+        name: editName.trim(),
+        prompt: editPrompt.trim(),
       };
       setCriteria(newCriteria);
       setEditingIndex(null);
-      setEditValue('');
+      setEditName('');
+      setEditPrompt('');
       toast.success('Criterion updated');
     } catch (error: any) {
       console.error('Error updating criterion:', error);
@@ -173,7 +178,8 @@ export default function AIScreeningDialog({
 
   const cancelEdit = () => {
     setEditingIndex(null);
-    setEditValue('');
+    setEditName('');
+    setEditPrompt('');
   };
 
   const runScreening = async () => {
@@ -374,24 +380,42 @@ export default function AIScreeningDialog({
                   </Badge>
 
                   {editingIndex === index ? (
-                    <div className="flex-1 flex gap-2">
-                      <Input
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                        autoFocus
-                        disabled={isSaving}
-                      />
-                      <Button size="sm" onClick={saveEdit} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSaving}>
-                        Cancel
-                      </Button>
+                    <div className="flex-1 space-y-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Name</label>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Criterion name"
+                          disabled={isSaving}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Prompt</label>
+                        <Input
+                          value={editPrompt}
+                          onChange={(e) => setEditPrompt(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                          placeholder="Screening prompt"
+                          autoFocus
+                          disabled={isSaving}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit} disabled={isSaving || !editName.trim() || !editPrompt.trim()}>
+                          {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSaving}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <>
-                      <span className="flex-1 pt-0.5">{criterion.prompt}</span>
+                      <div className="flex-1 pt-0.5">
+                        <div className="font-medium text-sm">{criterion.name}</div>
+                        <div className="text-muted-foreground text-sm">{criterion.prompt}</div>
+                      </div>
                       <div className="flex gap-1">
                         <Button
                           variant="outline"
@@ -418,17 +442,29 @@ export default function AIScreeningDialog({
             )}
 
             {/* Add New Criterion Input */}
-            <div className="flex gap-2 p-4 border rounded-lg border-dashed">
-              <Input
-                id="new-criterion-input"
-                placeholder="Type a new criterion (e.g., 'Revenue contribution from Asia > 30%')"
-                value={newCriterion}
-                onChange={(e) => setNewCriterion(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !isSaving && addCriterion()}
-                disabled={isSaving}
-              />
-              <Button onClick={addCriterion} disabled={!newCriterion.trim() || isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
+            <div className="space-y-2 p-4 border rounded-lg border-dashed">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Name</label>
+                <Input
+                  placeholder="e.g., Asia Revenue Check"
+                  value={newCriterionName}
+                  onChange={(e) => setNewCriterionName(e.target.value)}
+                  disabled={isSaving}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Prompt</label>
+                <Input
+                  id="new-criterion-input"
+                  placeholder="e.g., Revenue contribution from Asia > 30%"
+                  value={newCriterionPrompt}
+                  onChange={(e) => setNewCriterionPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !isSaving && addCriterion()}
+                  disabled={isSaving}
+                />
+              </div>
+              <Button onClick={addCriterion} disabled={!newCriterionName.trim() || !newCriterionPrompt.trim() || isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Criterion'}
               </Button>
             </div>
           </div>
