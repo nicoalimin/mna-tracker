@@ -537,6 +537,518 @@ Returns:
   }
 );
 
+/**
+ * Query past acquisitions with filters.
+ */
+export const queryPastAcquisitions = tool(
+  async ({
+    sector,
+    country,
+    status,
+    project_type,
+    year,
+    search_term,
+    limit = 20,
+  }: {
+    sector?: string;
+    country?: string;
+    status?: string;
+    project_type?: string;
+    year?: string;
+    search_term?: string;
+    limit?: number;
+  }) => {
+    logger.debug(
+      `🔧 TOOL CALLED: query_past_acquisitions(sector='${sector}', country='${country}', search='${search_term}')`
+    );
+
+    try {
+      const supabase = getSupabaseClient();
+
+      let query = supabase
+        .from("past_acquisitions")
+        .select(
+          `
+          id,
+          no,
+          project_name,
+          project_type,
+          target_co_partner,
+          seller,
+          country,
+          sector,
+          ev_100_pct_usd_m,
+          revenue_usd_m,
+          ebitda_usd_m,
+          ebitda_margin_pct,
+          status,
+          internal_stage,
+          year,
+          pass_l0_screening,
+          pass_all_5_l1_criteria
+        `
+        )
+        .limit(Math.min(limit, 50));
+
+      // Apply filters
+      if (sector) {
+        query = query.ilike("sector", `%${sector}%`);
+      }
+      if (country) {
+        query = query.ilike("country", `%${country}%`);
+      }
+      if (status) {
+        query = query.ilike("status", `%${status}%`);
+      }
+      if (project_type) {
+        query = query.ilike("project_type", `%${project_type}%`);
+      }
+      if (year) {
+        query = query.eq("year", year);
+      }
+      if (search_term) {
+        query = query.or(
+          `project_name.ilike.%${search_term}%,target_co_partner.ilike.%${search_term}%,sector.ilike.%${search_term}%`
+        );
+      }
+
+      const { data: acquisitions, error } = await query;
+
+      if (error) {
+        logger.error(`Query error: ${error.message}`);
+        return `**Query Error:** ${error.message}`;
+      }
+
+      if (!acquisitions || acquisitions.length === 0) {
+        return "No past acquisitions found matching your criteria.";
+      }
+
+      // Format results as markdown table
+      const header = "Project Name | Type | Sector | Country | EV ($M) | Revenue ($M) | EBITDA ($M) | Status | Year";
+      const separator = "--- | --- | --- | --- | --- | --- | --- | --- | ---";
+
+      const rows = acquisitions.map((a) => {
+        const ev = a.ev_100_pct_usd_m || "-";
+        const rev = a.revenue_usd_m || "-";
+        const ebitda = a.ebitda_usd_m || "-";
+        return `${a.project_name || "N/A"} | ${a.project_type || "-"} | ${a.sector || "-"} | ${a.country || "-"} | ${ev} | ${rev} | ${ebitda} | ${a.status || "-"} | ${a.year || "-"}`;
+      });
+
+      let result = `**Past Acquisitions (${acquisitions.length} deals):**\n\n`;
+      result += `| ${header} |\n| ${separator} |\n`;
+      result += rows.map((row) => `| ${row} |`).join("\n");
+
+      logger.debug(`✓ Query returned ${acquisitions.length} past acquisitions`);
+      return result;
+    } catch (error) {
+      logger.error(`Query error: ${(error as Error).message}`);
+      return `**Error:** ${(error as Error).message}`;
+    }
+  },
+  {
+    name: "query_past_acquisitions",
+    description: `Query past acquisitions from the database with optional filters.
+
+Use this tool to find historical deals by sector, country, status, or search terms.
+All filters are optional and can be combined.
+
+Args:
+    sector: Filter by sector (partial match, e.g., "Technology", "Healthcare")
+    country: Filter by country (partial match, e.g., "USA", "Japan")
+    status: Filter by deal status (e.g., "Closed", "Dropped")
+    project_type: Filter by project type
+    year: Filter by year
+    search_term: Search across project name, target company, and sector
+    limit: Maximum number of results (default: 20, max: 50)
+
+Returns:
+    A table of matching past acquisitions with key deal metrics.`,
+    schema: z.object({
+      sector: z.string().optional().describe("Filter by sector"),
+      country: z.string().optional().describe("Filter by country"),
+      status: z.string().optional().describe("Filter by deal status"),
+      project_type: z.string().optional().describe("Filter by project type"),
+      year: z.string().optional().describe("Filter by year"),
+      search_term: z.string().optional().describe("Search term for name/sector"),
+      limit: z.number().optional().default(20).describe("Max results to return"),
+    }),
+  }
+);
+
+/**
+ * Compare a company against past acquisitions to evaluate fit.
+ */
+export const compareWithPastAcquisitions = tool(
+  async ({
+    company_name,
+    sector,
+    country,
+    revenue_usd_m,
+    ebitda_usd_m,
+    ebitda_margin_pct,
+    ev_usd_m,
+  }: {
+    company_name: string;
+    sector?: string;
+    country?: string;
+    revenue_usd_m?: number;
+    ebitda_usd_m?: number;
+    ebitda_margin_pct?: number;
+    ev_usd_m?: number;
+  }) => {
+    logger.debug(
+      `🔧 TOOL CALLED: compare_with_past_acquisitions(company='${company_name}', sector='${sector}')`
+    );
+
+    try {
+      const supabase = getSupabaseClient();
+
+      // Get all past acquisitions for comparison
+      const { data: acquisitions, error } = await supabase
+        .from("past_acquisitions")
+        .select("*");
+
+      if (error) {
+        logger.error(`Query error: ${error.message}`);
+        return `**Query Error:** ${error.message}`;
+      }
+
+      if (!acquisitions || acquisitions.length === 0) {
+        return "No past acquisitions data available for comparison.";
+      }
+
+      // Filter to similar deals if sector provided
+      let comparableDeals = acquisitions;
+      if (sector) {
+        const sectorLower = sector.toLowerCase();
+        comparableDeals = acquisitions.filter(
+          (a) => a.sector?.toLowerCase().includes(sectorLower)
+        );
+      }
+      if (country) {
+        const countryLower = country.toLowerCase();
+        comparableDeals = comparableDeals.filter(
+          (a) => a.country?.toLowerCase().includes(countryLower)
+        );
+      }
+
+      // Calculate statistics from comparable deals
+      const parseNumeric = (val: string | null | undefined): number | null => {
+        if (!val) return null;
+        const num = parseFloat(val.replace(/[,$%]/g, ""));
+        return isNaN(num) ? null : num;
+      };
+
+      const evValues = comparableDeals.map((a) => parseNumeric(a.ev_100_pct_usd_m)).filter((v): v is number => v !== null);
+      const revValues = comparableDeals.map((a) => parseNumeric(a.revenue_usd_m)).filter((v): v is number => v !== null);
+      const ebitdaValues = comparableDeals.map((a) => parseNumeric(a.ebitda_usd_m)).filter((v): v is number => v !== null);
+      const marginValues = comparableDeals.map((a) => parseNumeric(a.ebitda_margin_pct)).filter((v): v is number => v !== null);
+
+      const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+      const median = (arr: number[]) => {
+        if (arr.length === 0) return 0;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+      };
+      const min = (arr: number[]) => arr.length > 0 ? Math.min(...arr) : 0;
+      const max = (arr: number[]) => arr.length > 0 ? Math.max(...arr) : 0;
+
+      // Count screening pass rates
+      const passedL0 = comparableDeals.filter((a) => 
+        a.pass_l0_screening?.toLowerCase() === "yes" || a.pass_l0_screening?.toLowerCase() === "true"
+      ).length;
+      const passedL1 = comparableDeals.filter((a) => 
+        a.pass_all_5_l1_criteria?.toLowerCase() === "yes" || a.pass_all_5_l1_criteria?.toLowerCase() === "true"
+      ).length;
+
+      // Build comparison result
+      let result = `## Comparison Analysis: ${company_name}\n\n`;
+      result += `### Comparable Deals Overview\n`;
+      result += `- **Total Past Acquisitions:** ${acquisitions.length}\n`;
+      result += `- **Comparable Deals (${sector || "All"} ${country ? `in ${country}` : ""}):** ${comparableDeals.length}\n`;
+      result += `- **L0 Screening Pass Rate:** ${comparableDeals.length > 0 ? ((passedL0 / comparableDeals.length) * 100).toFixed(1) : 0}%\n`;
+      result += `- **L1 Criteria Pass Rate:** ${comparableDeals.length > 0 ? ((passedL1 / comparableDeals.length) * 100).toFixed(1) : 0}%\n\n`;
+
+      result += `### Historical Deal Metrics (Comparable Deals)\n\n`;
+      result += `| Metric | Min | Avg | Median | Max | ${company_name} | Fit |\n`;
+      result += `| --- | --- | --- | --- | --- | --- | --- |\n`;
+
+      // EV comparison
+      if (evValues.length > 0) {
+        const companyEv = ev_usd_m !== undefined ? ev_usd_m : null;
+        const evFit = companyEv !== null 
+          ? (companyEv >= min(evValues) * 0.5 && companyEv <= max(evValues) * 1.5 ? "✅ Good" : "⚠️ Outside Range")
+          : "N/A";
+        result += `| EV ($M) | ${min(evValues).toFixed(1)} | ${avg(evValues).toFixed(1)} | ${median(evValues).toFixed(1)} | ${max(evValues).toFixed(1)} | ${companyEv?.toFixed(1) || "N/A"} | ${evFit} |\n`;
+      }
+
+      // Revenue comparison
+      if (revValues.length > 0) {
+        const companyRev = revenue_usd_m !== undefined ? revenue_usd_m : null;
+        const revFit = companyRev !== null 
+          ? (companyRev >= min(revValues) * 0.5 && companyRev <= max(revValues) * 1.5 ? "✅ Good" : "⚠️ Outside Range")
+          : "N/A";
+        result += `| Revenue ($M) | ${min(revValues).toFixed(1)} | ${avg(revValues).toFixed(1)} | ${median(revValues).toFixed(1)} | ${max(revValues).toFixed(1)} | ${companyRev?.toFixed(1) || "N/A"} | ${revFit} |\n`;
+      }
+
+      // EBITDA comparison
+      if (ebitdaValues.length > 0) {
+        const companyEbitda = ebitda_usd_m !== undefined ? ebitda_usd_m : null;
+        const ebitdaFit = companyEbitda !== null 
+          ? (companyEbitda >= min(ebitdaValues) * 0.5 && companyEbitda <= max(ebitdaValues) * 1.5 ? "✅ Good" : "⚠️ Outside Range")
+          : "N/A";
+        result += `| EBITDA ($M) | ${min(ebitdaValues).toFixed(1)} | ${avg(ebitdaValues).toFixed(1)} | ${median(ebitdaValues).toFixed(1)} | ${max(ebitdaValues).toFixed(1)} | ${companyEbitda?.toFixed(1) || "N/A"} | ${ebitdaFit} |\n`;
+      }
+
+      // Margin comparison
+      if (marginValues.length > 0) {
+        const companyMargin = ebitda_margin_pct !== undefined ? ebitda_margin_pct : null;
+        const marginFit = companyMargin !== null 
+          ? (companyMargin >= 10 ? "✅ Good" : "⚠️ Below 10%")
+          : "N/A";
+        result += `| EBITDA Margin (%) | ${min(marginValues).toFixed(1)} | ${avg(marginValues).toFixed(1)} | ${median(marginValues).toFixed(1)} | ${max(marginValues).toFixed(1)} | ${companyMargin?.toFixed(1) || "N/A"} | ${marginFit} |\n`;
+      }
+
+      // Find most similar deals
+      result += `\n### Most Similar Past Deals\n\n`;
+      
+      const scoredDeals = comparableDeals.map((deal) => {
+        let score = 0;
+        const dealEv = parseNumeric(deal.ev_100_pct_usd_m);
+        const dealRev = parseNumeric(deal.revenue_usd_m);
+        const dealEbitda = parseNumeric(deal.ebitda_usd_m);
+
+        // Score based on similarity (lower diff = higher score)
+        if (ev_usd_m && dealEv) {
+          const diff = Math.abs(ev_usd_m - dealEv) / Math.max(ev_usd_m, dealEv);
+          score += (1 - Math.min(diff, 1)) * 30;
+        }
+        if (revenue_usd_m && dealRev) {
+          const diff = Math.abs(revenue_usd_m - dealRev) / Math.max(revenue_usd_m, dealRev);
+          score += (1 - Math.min(diff, 1)) * 30;
+        }
+        if (ebitda_usd_m && dealEbitda) {
+          const diff = Math.abs(ebitda_usd_m - dealEbitda) / Math.max(ebitda_usd_m, dealEbitda);
+          score += (1 - Math.min(diff, 1)) * 40;
+        }
+
+        return { deal, score };
+      });
+
+      const topDeals = scoredDeals
+        .filter((d) => d.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      if (topDeals.length > 0) {
+        result += `| Project Name | Sector | EV ($M) | Revenue ($M) | EBITDA ($M) | Status | Similarity |\n`;
+        result += `| --- | --- | --- | --- | --- | --- | --- |\n`;
+        topDeals.forEach(({ deal, score }) => {
+          result += `| ${deal.project_name || "N/A"} | ${deal.sector || "-"} | ${deal.ev_100_pct_usd_m || "-"} | ${deal.revenue_usd_m || "-"} | ${deal.ebitda_usd_m || "-"} | ${deal.status || "-"} | ${score.toFixed(0)}% |\n`;
+        });
+      } else {
+        result += "No similar deals found. Provide financial metrics for better matching.\n";
+      }
+
+      // Overall assessment
+      result += `\n### Overall Assessment\n\n`;
+      const assessmentPoints: string[] = [];
+      
+      if (ev_usd_m !== undefined && evValues.length > 0) {
+        if (ev_usd_m <= 1000) {
+          assessmentPoints.push("✅ EV under $1B - meets size criteria");
+        } else {
+          assessmentPoints.push("⚠️ EV over $1B - may exceed typical deal size");
+        }
+      }
+      
+      if (ebitda_margin_pct !== undefined) {
+        if (ebitda_margin_pct >= 10) {
+          assessmentPoints.push("✅ EBITDA margin >10% - meets profitability criteria");
+        } else {
+          assessmentPoints.push("⚠️ EBITDA margin <10% - below typical threshold");
+        }
+      }
+
+      if (comparableDeals.length >= 3) {
+        assessmentPoints.push(`📊 ${comparableDeals.length} comparable past deals found for reference`);
+      } else if (comparableDeals.length > 0) {
+        assessmentPoints.push(`📊 Limited comparable deals (${comparableDeals.length}) - consider broader comparison`);
+      }
+
+      result += assessmentPoints.length > 0 ? assessmentPoints.join("\n") : "Provide more details for a complete assessment.";
+
+      logger.debug("✓ Comparison analysis completed");
+      return result;
+    } catch (error) {
+      logger.error(`Comparison error: ${(error as Error).message}`);
+      return `**Error:** ${(error as Error).message}`;
+    }
+  },
+  {
+    name: "compare_with_past_acquisitions",
+    description: `Compare a company against past acquisitions to evaluate strategic fit.
+
+Use this tool when the user wants to:
+- Evaluate if a company fits historical deal patterns
+- Compare a target's metrics against past acquisition benchmarks
+- Find similar past deals for reference
+- Assess if a company meets typical screening criteria
+
+Args:
+    company_name: Name of the company to evaluate (required)
+    sector: Company's sector for filtering comparable deals
+    country: Company's country for filtering comparable deals
+    revenue_usd_m: Company's revenue in USD millions
+    ebitda_usd_m: Company's EBITDA in USD millions
+    ebitda_margin_pct: Company's EBITDA margin percentage
+    ev_usd_m: Company's enterprise value in USD millions
+
+Returns:
+    Detailed comparison analysis including:
+    - Historical deal statistics from comparable acquisitions
+    - Fit assessment against typical deal metrics
+    - Most similar past deals
+    - Overall strategic fit assessment`,
+    schema: z.object({
+      company_name: z.string().describe("Name of the company to evaluate"),
+      sector: z.string().optional().describe("Company's sector"),
+      country: z.string().optional().describe("Company's country"),
+      revenue_usd_m: z.number().optional().describe("Revenue in USD millions"),
+      ebitda_usd_m: z.number().optional().describe("EBITDA in USD millions"),
+      ebitda_margin_pct: z.number().optional().describe("EBITDA margin percentage"),
+      ev_usd_m: z.number().optional().describe("Enterprise value in USD millions"),
+    }),
+  }
+);
+
+/**
+ * Get details of a specific past acquisition.
+ */
+export const getPastAcquisitionDetails = tool(
+  async ({ project_name }: { project_name: string }) => {
+    logger.debug(`🔧 TOOL CALLED: get_past_acquisition_details(project_name='${project_name}')`);
+
+    try {
+      const supabase = getSupabaseClient();
+
+      const { data: acquisitions, error } = await supabase
+        .from("past_acquisitions")
+        .select("*")
+        .ilike("project_name", `%${project_name}%`)
+        .limit(1);
+
+      if (error) {
+        return `**Error:** ${error.message}`;
+      }
+
+      if (!acquisitions || acquisitions.length === 0) {
+        return `No past acquisition found matching "${project_name}". Try a different search term or use query_past_acquisitions to browse available deals.`;
+      }
+
+      const a = acquisitions[0];
+
+      const result = `## Past Acquisition Details: ${a.project_name || "Unknown"}
+
+### Basic Information
+- **No:** ${a.no || "N/A"}
+- **Project Type:** ${a.project_type || "N/A"}
+- **Target Company/Partner:** ${a.target_co_partner || "N/A"}
+- **Seller:** ${a.seller || "N/A"}
+- **Target Company Type:** ${a.target_co_company_type || "N/A"}
+- **Country:** ${a.country || "N/A"}
+- **Sector:** ${a.sector || "N/A"}
+- **Year:** ${a.year || "N/A"}
+
+### Deal Metrics
+- **EV (100%):** $${a.ev_100_pct_usd_m || "N/A"}M
+- **Equity Value:** $${a.equity_value || "N/A"}M
+- **Estimated Debt:** $${a.estimated_debt_usd_m || "N/A"}M
+- **Investment Value:** $${a.investment_value || "N/A"}M
+- **Stake:** ${a.stake || "N/A"}
+
+### Financial Performance
+- **Revenue:** $${a.revenue_usd_m || "N/A"}M
+- **EBITDA:** $${a.ebitda_usd_m || "N/A"}M
+- **Net Income:** $${a.net_income_usd_m || "N/A"}M
+- **EBITDA Margin:** ${a.ebitda_margin_pct || "N/A"}%
+- **NIM:** ${a.nim_pct || "N/A"}%
+- **FCF Conversion:** ${a.fcf_conv || "N/A"}
+
+### Historical Financials
+| Year | 2021 | 2022 | 2023 | 2024 |
+| --- | --- | --- | --- | --- |
+| Revenue ($M) | ${a.revenue_2021_usd_m || "-"} | ${a.revenue_2022_usd_m || "-"} | ${a.revenue_2023_usd_m || "-"} | ${a.revenue_2024_usd_m || "-"} |
+| EBITDA ($M) | ${a.ebitda_2021_usd_m || "-"} | ${a.ebitda_2022_usd_m || "-"} | ${a.ebitda_2023_usd_m || "-"} | ${a.ebitda_2024_usd_m || "-"} |
+| EBITDA Margin | ${a.ebitda_margin_2021 || "-"} | ${a.ebitda_margin_2022 || "-"} | ${a.ebitda_margin_2023 || "-"} | ${a.ebitda_margin_2024 || "-"} |
+
+### Growth Metrics
+- **2021-2022 CAGR:** ${a.cagr_2021_2022 || "N/A"}
+- **2022-2023 CAGR:** ${a.cagr_2022_2023 || "N/A"}
+- **2023-2024 CAGR:** ${a.cagr_2023_2024 || "N/A"}
+- **Revenue CAGR (L3Y):** ${a.revenue_cagr_l3y || "N/A"}
+- **Revenue Drop Count:** ${a.revenue_drop_count || "N/A"}
+
+### Status & Screening
+- **Internal Stage:** ${a.internal_stage || "N/A"}
+- **Status:** ${a.status || "N/A"}
+- **Prioritization:** ${a.prioritization || "N/A"}
+- **Source:** ${a.source || "N/A"} (${a.type_of_source || "N/A"})
+- **Internal Source:** ${a.internal_source || "N/A"}
+- **Name of Advisors:** ${a.name_of_advisors || "N/A"}
+
+### Screening Results
+- **L0 Date:** ${a.l0_date || "N/A"}
+- **Pass L0 Screening:** ${a.pass_l0_screening || "N/A"}
+- **Reason to Drop:** ${a.reason_to_drop || "N/A"}
+- **On Hold Reason:** ${a.on_hold_reason || "N/A"}
+
+### L1 Criteria Assessment
+- **Vision Alignment (>25% priority revenue):** ${a.vision_alignment_25pct_revenue || "N/A"}
+- **Priority Geography (>50% US/JP/KR/TW/CN/ID):** ${a.priority_geography_50pct_revenue || "N/A"}
+- **EV Value (<$1B):** ${a.ev_value_under_1b || "N/A"}
+- **Revenue Stability (no consecutive drop):** ${a.revenue_stability_no_consecutive_drop || "N/A"}
+- **EBITDA >10% over L3Y:** ${a.ebitda_over_10pct_l3y || "N/A"}
+- **Pass All 5 L1 Criteria:** ${a.pass_all_5_l1_criteria || "N/A"}
+- **Willingness to Sell:** ${a.willingness_to_sell || "N/A"}
+
+### Product & Strategic Fit
+- **Main Products:** ${a.main_products || "N/A"}
+- **Company Website:** ${a.company_website || "N/A"}
+- **Fit with Priority Product Groups:** ${a.fit_with_priority_product_groups || "N/A"}
+- **Details on Product Fit:** ${a.details_on_product_fit || "N/A"}
+- **% Revenue from Priority Segments:** ${a.pct_revenue_from_priority_segments || "N/A"}
+- **Geography Breakdown:** ${a.geography_breakdown_of_revenue || "N/A"}
+
+${a.comments ? `### Comments\n${a.comments}` : ""}
+${a.assumption ? `### Assumptions\n${a.assumption}` : ""}
+`;
+
+      logger.debug("✓ Past acquisition details retrieved");
+      return result;
+    } catch (error) {
+      logger.error(`Details error: ${(error as Error).message}`);
+      return `**Error:** ${(error as Error).message}`;
+    }
+  },
+  {
+    name: "get_past_acquisition_details",
+    description: `Get detailed information about a specific past acquisition by project name.
+
+Use this when the user asks about a specific historical deal's details, screening criteria, or outcomes.
+
+Args:
+    project_name: The name (or partial name) of the project/deal to look up
+
+Returns:
+    Complete deal profile with all available financial data, screening results, and strategic fit assessment.`,
+    schema: z.object({
+      project_name: z.string().describe("Project name to look up"),
+    }),
+  }
+);
+
 // Export all tools as an array
 export const tools = [
   getDataSchema,
@@ -544,4 +1056,7 @@ export const tools = [
   getCompanyStats,
   getCompanyDetails,
   webSearch,
+  queryPastAcquisitions,
+  compareWithPastAcquisitions,
+  getPastAcquisitionDetails,
 ];
