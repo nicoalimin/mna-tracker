@@ -1,0 +1,14 @@
+type: workspace
+model: workspace
+id: wk_AHbnhVFoXx
+createdAt: 2026-01-28T15:57:01.533796
+updatedAt: 2026-01-28T15:57:01.533797
+authentication: {}
+authenticationType: null
+description: ''
+headers: []
+name: Inven
+encryptionKeyChallenge: null
+settingValidateCertificates: true
+settingFollowRedirects: true
+settingRequestTimeout: 0
