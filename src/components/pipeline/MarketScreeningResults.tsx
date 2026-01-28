@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Plus, ExternalLink, Sparkles, Trash2 } from 'lucide-react';
+import { Loader2, Plus, ExternalLink, Sparkles, Trash2, Calendar } from 'lucide-react';
 import MarketScreeningDetailDialog from './MarketScreeningDetailDialog';
+import { formatDistanceToNow } from 'date-fns';
 
 interface MarketScreeningResult {
   id: string;
@@ -28,6 +29,7 @@ interface MarketScreeningResult {
   estimated_valuation: string | null;
   is_added_to_pipeline: boolean;
   discovered_at: string;
+  thesis_content: string | null;
 }
 
 interface MarketScreeningResultsProps {
@@ -123,10 +125,10 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
         });
 
         // Mark as added
-      await (supabase as any)
-        .from('market_screening_results')
-        .update({ is_added_to_pipeline: true })
-        .eq('id', result.id);
+        await (supabase as any)
+          .from('market_screening_results')
+          .update({ is_added_to_pipeline: true })
+          .eq('id', result.id);
       }
 
       toast.success(`Added ${selectedResults.length} companies to L0`);
@@ -277,7 +279,8 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
                 <TableHead>Match Score</TableHead>
                 <TableHead>Est. Revenue</TableHead>
                 <TableHead>Est. Valuation</TableHead>
-                <TableHead>Match Reason</TableHead>
+                <TableHead>Discovered</TableHead>
+                <TableHead className="max-w-[150px]">Thesis</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -329,9 +332,15 @@ export default function MarketScreeningResults({ refreshTrigger, onAddedToPipeli
                   <TableCell className="font-mono text-sm">
                     {result.estimated_valuation || '-'}
                   </TableCell>
-                  <TableCell className="max-w-[200px]">
-                    <p className="text-sm text-muted-foreground truncate" title={result.match_reason || ''}>
-                      {result.match_reason || '-'}
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {formatDistanceToNow(new Date(result.discovered_at), { addSuffix: true })}
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-w-[150px]">
+                    <p className="text-xs text-muted-foreground truncate" title={result.thesis_content || ''}>
+                      {result.thesis_content ? result.thesis_content.substring(0, 50) + '...' : '-'}
                     </p>
                   </TableCell>
                   <TableCell className="text-right">

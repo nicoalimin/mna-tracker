@@ -139,6 +139,7 @@ Find ${sourcesCount} companies. Return ONLY the JSON object, no other text.`;
       estimated_valuation: company.estimated_valuation,
       is_added_to_pipeline: false,
       discovered_at: new Date().toISOString(),
+      thesis_content: thesis,
     }));
 
     const { error: insertError } = await (supabase as any)
