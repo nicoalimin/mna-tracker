@@ -484,14 +484,20 @@ export const webSearch = tool(
       const response = await client.messages.create({
         model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
-        tools: [],
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 5,
+          },
+        ],
         messages: [
           {
             role: "user",
             content: `Search the web for: ${query}\n\nProvide a summary of the most relevant and recent information you find.`,
           },
         ],
-      });
+      } as any);
 
       // Extract text content from response
       const outputLines = [`**Web Search Results for '${query}':**\n`];
@@ -755,10 +761,10 @@ export const compareWithPastAcquisitions = tool(
       const max = (arr: number[]) => arr.length > 0 ? Math.max(...arr) : 0;
 
       // Count screening pass rates
-      const passedL0 = comparableDeals.filter((a) => 
+      const passedL0 = comparableDeals.filter((a) =>
         a.pass_l0_screening?.toLowerCase() === "yes" || a.pass_l0_screening?.toLowerCase() === "true"
       ).length;
-      const passedL1 = comparableDeals.filter((a) => 
+      const passedL1 = comparableDeals.filter((a) =>
         a.pass_all_5_l1_criteria?.toLowerCase() === "yes" || a.pass_all_5_l1_criteria?.toLowerCase() === "true"
       ).length;
 
@@ -777,7 +783,7 @@ export const compareWithPastAcquisitions = tool(
       // EV comparison
       if (evValues.length > 0) {
         const companyEv = ev_usd_m !== undefined ? ev_usd_m : null;
-        const evFit = companyEv !== null 
+        const evFit = companyEv !== null
           ? (companyEv >= min(evValues) * 0.5 && companyEv <= max(evValues) * 1.5 ? "✅ Good" : "⚠️ Outside Range")
           : "N/A";
         result += `| EV ($M) | ${min(evValues).toFixed(1)} | ${avg(evValues).toFixed(1)} | ${median(evValues).toFixed(1)} | ${max(evValues).toFixed(1)} | ${companyEv?.toFixed(1) || "N/A"} | ${evFit} |\n`;
@@ -786,7 +792,7 @@ export const compareWithPastAcquisitions = tool(
       // Revenue comparison
       if (revValues.length > 0) {
         const companyRev = revenue_usd_m !== undefined ? revenue_usd_m : null;
-        const revFit = companyRev !== null 
+        const revFit = companyRev !== null
           ? (companyRev >= min(revValues) * 0.5 && companyRev <= max(revValues) * 1.5 ? "✅ Good" : "⚠️ Outside Range")
           : "N/A";
         result += `| Revenue ($M) | ${min(revValues).toFixed(1)} | ${avg(revValues).toFixed(1)} | ${median(revValues).toFixed(1)} | ${max(revValues).toFixed(1)} | ${companyRev?.toFixed(1) || "N/A"} | ${revFit} |\n`;
@@ -795,7 +801,7 @@ export const compareWithPastAcquisitions = tool(
       // EBITDA comparison
       if (ebitdaValues.length > 0) {
         const companyEbitda = ebitda_usd_m !== undefined ? ebitda_usd_m : null;
-        const ebitdaFit = companyEbitda !== null 
+        const ebitdaFit = companyEbitda !== null
           ? (companyEbitda >= min(ebitdaValues) * 0.5 && companyEbitda <= max(ebitdaValues) * 1.5 ? "✅ Good" : "⚠️ Outside Range")
           : "N/A";
         result += `| EBITDA ($M) | ${min(ebitdaValues).toFixed(1)} | ${avg(ebitdaValues).toFixed(1)} | ${median(ebitdaValues).toFixed(1)} | ${max(ebitdaValues).toFixed(1)} | ${companyEbitda?.toFixed(1) || "N/A"} | ${ebitdaFit} |\n`;
@@ -804,7 +810,7 @@ export const compareWithPastAcquisitions = tool(
       // Margin comparison
       if (marginValues.length > 0) {
         const companyMargin = ebitda_margin_pct !== undefined ? ebitda_margin_pct : null;
-        const marginFit = companyMargin !== null 
+        const marginFit = companyMargin !== null
           ? (companyMargin >= 10 ? "✅ Good" : "⚠️ Below 10%")
           : "N/A";
         result += `| EBITDA Margin (%) | ${min(marginValues).toFixed(1)} | ${avg(marginValues).toFixed(1)} | ${median(marginValues).toFixed(1)} | ${max(marginValues).toFixed(1)} | ${companyMargin?.toFixed(1) || "N/A"} | ${marginFit} |\n`;
@@ -812,7 +818,7 @@ export const compareWithPastAcquisitions = tool(
 
       // Find most similar deals
       result += `\n### Most Similar Past Deals\n\n`;
-      
+
       const scoredDeals = comparableDeals.map((deal) => {
         let score = 0;
         const dealEv = parseNumeric(deal.ev_100_pct_usd_m);
@@ -854,7 +860,7 @@ export const compareWithPastAcquisitions = tool(
       // Overall assessment
       result += `\n### Overall Assessment\n\n`;
       const assessmentPoints: string[] = [];
-      
+
       if (ev_usd_m !== undefined && evValues.length > 0) {
         if (ev_usd_m <= 1000) {
           assessmentPoints.push("✅ EV under $1B - meets size criteria");
@@ -862,7 +868,7 @@ export const compareWithPastAcquisitions = tool(
           assessmentPoints.push("⚠️ EV over $1B - may exceed typical deal size");
         }
       }
-      
+
       if (ebitda_margin_pct !== undefined) {
         if (ebitda_margin_pct >= 10) {
           assessmentPoints.push("✅ EBITDA margin >10% - meets profitability criteria");
