@@ -516,22 +516,6 @@ export default function Pipeline() {
                         />
                       </CollapsibleSection>
 
-                      {/* AI Screening Progress Panel */}
-                      <CollapsibleSection title="Screening Progress">
-                        <ScreeningProgressPanel
-                          refreshTrigger={screeningProgressRefresh}
-                          onScreeningComplete={() => {
-                            fetchCompanies();
-                          }}
-                          onCompanyClick={(companyId) => {
-                            const company = companies.find((c) => c.id === companyId);
-                            if (company) {
-                              setSelectedCompany(company);
-                            }
-                          }}
-                        />
-                      </CollapsibleSection>
-
                       <CollapsibleSection title="L0 Pipeline Companies" count={sortedCompanies.length}>
                         <Card className="border-dashed">
                           <CardHeader className="pb-3">
@@ -739,6 +723,22 @@ export default function Pipeline() {
                             )}
                           </CardContent>
                         </Card>
+                      </CollapsibleSection>
+
+                      {/* AI Screening Progress Panel */}
+                      <CollapsibleSection title="Screening Progress">
+                        <ScreeningProgressPanel
+                          refreshTrigger={screeningProgressRefresh}
+                          onScreeningComplete={() => {
+                            fetchCompanies();
+                          }}
+                          onCompanyClick={(companyId) => {
+                            const company = companies.find((c) => c.id === companyId);
+                            if (company) {
+                              setSelectedCompany(company);
+                            }
+                          }}
+                        />
                       </CollapsibleSection>
                     </div>
                   ) : (
