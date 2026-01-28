@@ -62,6 +62,7 @@ import AIScreeningDialog from '@/components/pipeline/AIScreeningDialog';
 import MarketScreeningStatus from '@/components/pipeline/MarketScreeningStatus';
 import MarketScreeningResults from '@/components/pipeline/MarketScreeningResults';
 import ScreeningProgressPanel from '@/components/pipeline/ScreeningProgressPanel';
+import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 
 interface PipelineCompany {
   id: string;
@@ -494,244 +495,251 @@ export default function Pipeline() {
                   {stage === 'L0' ? (
                     <div className="space-y-6">
                       {/* Market Screening Status Banner */}
-                      <MarketScreeningStatus
-                        onScanComplete={() => {
-                          setMarketScreeningRefresh(prev => prev + 1);
-                          fetchNewCandidatesCount();
-                        }}
-                        newCandidatesCount={newCandidatesCount}
-                      />
+                      <CollapsibleSection title="Market Scanning Configuration">
+                        <MarketScreeningStatus
+                          onScanComplete={() => {
+                            setMarketScreeningRefresh(prev => prev + 1);
+                            fetchNewCandidatesCount();
+                          }}
+                          newCandidatesCount={newCandidatesCount}
+                        />
+                      </CollapsibleSection>
 
                       {/* AI-Discovered Companies Results */}
-                      <MarketScreeningResults
-                        refreshTrigger={marketScreeningRefresh}
-                        onAddedToPipeline={() => {
-                          fetchCompanies();
-                          fetchNewCandidatesCount();
-                        }}
-                      />
+                      <CollapsibleSection title="AI Discovered Companies">
+                        <MarketScreeningResults
+                          refreshTrigger={marketScreeningRefresh}
+                          onAddedToPipeline={() => {
+                            fetchCompanies();
+                            fetchNewCandidatesCount();
+                          }}
+                        />
+                      </CollapsibleSection>
 
                       {/* AI Screening Progress Panel */}
-                      <ScreeningProgressPanel
-                        refreshTrigger={screeningProgressRefresh}
-                        onScreeningComplete={() => {
-                          fetchCompanies();
-                        }}
-                        onCompanyClick={(companyId) => {
-                          const company = companies.find((c) => c.id === companyId);
-                          if (company) {
-                            setSelectedCompany(company);
-                          }
-                        }}
-                      />
+                      <CollapsibleSection title="Screening Progress">
+                        <ScreeningProgressPanel
+                          refreshTrigger={screeningProgressRefresh}
+                          onScreeningComplete={() => {
+                            fetchCompanies();
+                          }}
+                          onCompanyClick={(companyId) => {
+                            const company = companies.find((c) => c.id === companyId);
+                            if (company) {
+                              setSelectedCompany(company);
+                            }
+                          }}
+                        />
+                      </CollapsibleSection>
 
-                      {/* Existing L0 Pipeline */}
-                      <Card className="border-dashed">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle className="text-lg">L0 Pipeline Companies</CardTitle>
-                              <CardDescription>Companies sourced and ready for screening</CardDescription>
+                      <CollapsibleSection title="L0 Pipeline Companies" count={sortedCompanies.length}>
+                        <Card className="border-dashed">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle className="text-lg">Pipeline Companies</CardTitle>
+                                <CardDescription>Companies sourced and ready for screening</CardDescription>
+                              </div>
+                              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                                <DialogTrigger asChild>
+                                  <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Company
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Add New Company</DialogTitle>
+                                    <DialogDescription>
+                                      Import companies from CSV/Excel or add manually
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <L0AddCompany onSuccess={() => {
+                                    setShowAddDialog(false);
+                                    fetchCompanies();
+                                  }} />
+                                </DialogContent>
+                              </Dialog>
                             </div>
-                            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                              <DialogTrigger asChild>
-                                <Button>
-                                  <Plus className="mr-2 h-4 w-4" />
-                                  Add Company
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>Add New Company</DialogTitle>
-                                  <DialogDescription>
-                                    Import companies from CSV/Excel or add manually
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <L0AddCompany onSuccess={() => {
-                                  setShowAddDialog(false);
-                                  fetchCompanies();
-                                }} />
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {/* Header with Select All and AI Screening */}
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={isAllSelected()}
-                                onCheckedChange={toggleSelectAll}
-                                id="select-all"
-                              />
-                              <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                                Select All
-                              </label>
+                          </CardHeader>
+                          <CardContent>
+                            {/* Header with Select All and AI Screening */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={isAllSelected()}
+                                  onCheckedChange={toggleSelectAll}
+                                  id="select-all"
+                                />
+                                <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                                  Select All
+                                </label>
+                              </div>
+                              <Button
+                                onClick={openAIScreening}
+                                className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
+                              >
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                AI Screening ({selectedIds.size} selected)
+                              </Button>
                             </div>
-                            <Button
-                              onClick={openAIScreening}
-                              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
-                            >
-                              <Sparkles className="mr-2 h-4 w-4" />
-                              AI Screening ({selectedIds.size} selected)
-                            </Button>
-                          </div>
 
-                          {/* Filters */}
-                          <div className="flex items-center gap-4 mb-4 flex-wrap">
-                            <div className="relative flex-1 max-w-sm">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                placeholder="Search companies..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9"
-                              />
-                            </div>
-                            <Select value={sectorFilter} onValueChange={setSectorFilter}>
-                              <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Sector" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Sectors</SelectItem>
-                                {uniqueSectors.map((sector) => (
-                                  <SelectItem key={sector} value={sector}>{sector}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as any)}>
-                              <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Source" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Sources</SelectItem>
-                                <SelectItem value="inbound">Inbound</SelectItem>
-                                <SelectItem value="outbound">Outbound</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {loading ? (
-                            <div className="flex items-center justify-center py-12">
-                              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                            </div>
-                          ) : sortedCompanies.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                              <Building2 className="h-12 w-12 mb-4 opacity-50" />
-                              <p>No companies in this stage</p>
-                            </div>
-                          ) : (
-                            <div className="overflow-x-auto">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-[50px]">Select</TableHead>
-                                    <TableHead>
-                                      <button
-                                        onClick={() => toggleSort('name')}
-                                        className="flex items-center hover:text-foreground transition-colors"
-                                      >
-                                        Company
-                                        <SortIcon field="name" />
-                                      </button>
-                                    </TableHead>
-                                    <TableHead>
-                                      <button
-                                        onClick={() => toggleSort('sector')}
-                                        className="flex items-center hover:text-foreground transition-colors"
-                                      >
-                                        Sector
-                                        <SortIcon field="sector" />
-                                      </button>
-                                    </TableHead>
-                                    <TableHead className="text-right">Revenue 2023</TableHead>
-                                    <TableHead className="text-right">Revenue 2024</TableHead>
-                                    <TableHead className="text-right">
-                                      <button
-                                        onClick={() => toggleSort('revenue')}
-                                        className="flex items-center justify-end w-full hover:text-foreground transition-colors"
-                                      >
-                                        Revenue 2025
-                                        <SortIcon field="revenue" />
-                                      </button>
-                                    </TableHead>
-                                    <TableHead className="text-right">EBITDA 2023</TableHead>
-                                    <TableHead className="text-right">EBITDA 2024</TableHead>
-                                    <TableHead className="text-right">
-                                      <button
-                                        onClick={() => toggleSort('ebitda')}
-                                        className="flex items-center justify-end w-full hover:text-foreground transition-colors"
-                                      >
-                                        EBITDA 2025
-                                        <SortIcon field="ebitda" />
-                                      </button>
-                                    </TableHead>
-                                    <TableHead className="text-right">
-                                      <button
-                                        onClick={() => toggleSort('valuation')}
-                                        className="flex items-center justify-end w-full hover:text-foreground transition-colors"
-                                      >
-                                        Valuation
-                                        <SortIcon field="valuation" />
-                                      </button>
-                                    </TableHead>
-                                    <TableHead className="text-center">Source</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {sortedCompanies.map((company) => (
-                                    <TableRow key={company.id} className="hover:bg-muted/50">
-                                      <TableCell>
-                                        <Checkbox
-                                          checked={selectedIds.has(company.id)}
-                                          onCheckedChange={() => toggleSelect(company.id)}
-                                        />
-                                      </TableCell>
-                                      <TableCell>
-                                        <button
-                                          onClick={() => setSelectedCompany(company)}
-                                          className="font-medium text-left hover:text-primary hover:underline transition-colors"
-                                        >
-                                          {company.target}
-                                        </button>
-                                      </TableCell>
-                                      <TableCell>
-                                        <span className="text-muted-foreground">{company.segment}</span>
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.revenue_2022_usd_mn)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.revenue_2023_usd_mn)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.revenue_2024_usd_mn)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ebitda_2022_usd_mn)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ebitda_2023_usd_mn)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ebitda_2024_usd_mn)}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {formatCurrency(company.ev_2024)}
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <Badge variant="outline">
-                                          {company.pipeline_stage}
-                                        </Badge>
-                                      </TableCell>
-                                    </TableRow>
+                            {/* Filters */}
+                            <div className="flex items-center gap-4 mb-4 flex-wrap">
+                              <div className="relative flex-1 max-w-sm">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Search companies..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="pl-9"
+                                />
+                              </div>
+                              <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                                <SelectTrigger className="w-40">
+                                  <SelectValue placeholder="Sector" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Sectors</SelectItem>
+                                  {uniqueSectors.map((sector) => (
+                                    <SelectItem key={sector} value={sector}>{sector}</SelectItem>
                                   ))}
-                                </TableBody>
-                              </Table>
+                                </SelectContent>
+                              </Select>
+                              <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as any)}>
+                                <SelectTrigger className="w-40">
+                                  <SelectValue placeholder="Source" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Sources</SelectItem>
+                                  <SelectItem value="inbound">Inbound</SelectItem>
+                                  <SelectItem value="outbound">Outbound</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
+
+                            {loading ? (
+                              <div className="flex items-center justify-center py-12">
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                              </div>
+                            ) : sortedCompanies.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                <Building2 className="h-12 w-12 mb-4 opacity-50" />
+                                <p>No companies in this stage</p>
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[50px]">Select</TableHead>
+                                      <TableHead>
+                                        <button
+                                          onClick={() => toggleSort('name')}
+                                          className="flex items-center hover:text-foreground transition-colors"
+                                        >
+                                          Company
+                                          <SortIcon field="name" />
+                                        </button>
+                                      </TableHead>
+                                      <TableHead>
+                                        <button
+                                          onClick={() => toggleSort('sector')}
+                                          className="flex items-center hover:text-foreground transition-colors"
+                                        >
+                                          Sector
+                                          <SortIcon field="sector" />
+                                        </button>
+                                      </TableHead>
+                                      <TableHead className="text-right">Revenue 2023</TableHead>
+                                      <TableHead className="text-right">Revenue 2024</TableHead>
+                                      <TableHead className="text-right">
+                                        <button
+                                          onClick={() => toggleSort('revenue')}
+                                          className="flex items-center justify-end w-full hover:text-foreground transition-colors"
+                                        >
+                                          Revenue 2025
+                                          <SortIcon field="revenue" />
+                                        </button>
+                                      </TableHead>
+                                      <TableHead className="text-right">EBITDA 2023</TableHead>
+                                      <TableHead className="text-right">EBITDA 2024</TableHead>
+                                      <TableHead className="text-right">
+                                        <button
+                                          onClick={() => toggleSort('ebitda')}
+                                          className="flex items-center justify-end w-full hover:text-foreground transition-colors"
+                                        >
+                                          EBITDA 2025
+                                          <SortIcon field="ebitda" />
+                                        </button>
+                                      </TableHead>
+                                      <TableHead className="text-right">
+                                        <button
+                                          onClick={() => toggleSort('valuation')}
+                                          className="flex items-center justify-end w-full hover:text-foreground transition-colors"
+                                        >
+                                          Valuation
+                                          <SortIcon field="valuation" />
+                                        </button>
+                                      </TableHead>
+                                      <TableHead className="text-center">Source</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {sortedCompanies.map((company) => (
+                                      <TableRow key={company.id} className="hover:bg-muted/50">
+                                        <TableCell>
+                                          <Checkbox
+                                            checked={selectedIds.has(company.id)}
+                                            onCheckedChange={() => toggleSelect(company.id)}
+                                          />
+                                        </TableCell>
+                                        <TableCell>
+                                          <button
+                                            onClick={() => setSelectedCompany(company)}
+                                            className="font-medium text-left hover:text-primary hover:underline transition-colors"
+                                          >
+                                            {company.target}
+                                          </button>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="text-muted-foreground">{company.segment}</span>
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.revenue_2022_usd_mn)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.revenue_2023_usd_mn)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.revenue_2024_usd_mn)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.ebitda_2022_usd_mn)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.ebitda_2023_usd_mn)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.ebitda_2024_usd_mn)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          {formatCurrency(company.ev_2024)}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Badge variant="outline">
+                                            {company.pipeline_stage}
+                                          </Badge>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </CollapsibleSection>
                     </div>
                   ) : (
                     <>
