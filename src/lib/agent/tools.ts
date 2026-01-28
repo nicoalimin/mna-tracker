@@ -1066,3 +1066,22 @@ export const tools = [
   compareWithPastAcquisitions,
   getPastAcquisitionDetails,
 ];
+
+/**
+ * Get a formatted list of tool names and descriptions for prompt injection.
+ * Returns a markdown-formatted list of available tools.
+ */
+export function getToolDescriptions(): string {
+  const toolInfo = [
+    { name: "get_data_schema", description: "Get the database schema to understand available columns and data types" },
+    { name: "query_companies", description: "Search and filter companies by segment, geography, revenue, EBITDA, and other criteria" },
+    { name: "get_company_stats", description: "Get aggregate statistics and breakdowns by segment or geography" },
+    { name: "get_company_details", description: "Get detailed information about a specific company by name" },
+    { name: "web_search", description: "Search the web for company data, financials, market info, and external benchmarks" },
+    { name: "query_past_acquisitions", description: "Query historical M&A deals by sector, country, status, or year" },
+    { name: "compare_with_past_acquisitions", description: "Compare a company against historical acquisition metrics" },
+    { name: "get_past_acquisition_details", description: "Get detailed information about a specific past acquisition" },
+  ];
+
+  return toolInfo.map((t, i) => `${i + 1}. **${t.name}** - ${t.description}`).join("\n");
+}

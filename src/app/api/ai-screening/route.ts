@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentGraph, HumanMessage } from "@/lib/agent";
+import { getToolDescriptions } from "@/lib/agent/tools";
 import { z } from "zod";
 
 // Schema for the screening result
@@ -41,29 +42,39 @@ interface ScreeningRequest {
 
 const SCREENING_PROMPT_TEMPLATE = `You are an M&A screening analyst. Your task is to evaluate whether a company passes or fails a specific screening criterion.
 
-Based on the available information, you MUST respond with a JSON object containing:
-- "result": one of "pass", "fail", "inconclusive", or "error"
-  - Use "pass" if the company clearly meets the criterion
-  - Use "fail" if the company clearly does not meet the criterion
-  - Use "inconclusive" if there is insufficient data to determine
-  - Use "error" only if you cannot process the request
-- "remarks": A brief explanation of your decision (1-2 sentences)
+## IMPORTANT: Use All Available Tools
 
-Important guidelines:
-- Be strict in your evaluation
-- If financial data is missing and needed for the criterion, return "inconclusive"
-- Always provide clear, actionable remarks
-- Respond ONLY with the JSON object, no additional text
+You have access to these tools - USE THEM to gather more information:
+{toolDescriptions}
 
-## Company Information
+**Before returning "inconclusive" due to missing data, ALWAYS try these steps:**
+1. If financial data is missing, use web_search to find it (e.g., "Company Name revenue EBITDA financials 2024")
+2. If industry context is needed, use web_search for benchmarks (e.g., "Industry average EBITDA margin")
+3. If criteria requires specific company info not provided, search for it
+4. If you need to compare with past deals, use query_past_acquisitions or compare_with_past_acquisitions
+
+## Company Information Provided
 {companyContext}
 
 ## Screening Criterion
 {criteriaPrompt}
 
-## Task
-Evaluate whether this company passes or fails the screening criterion above.
-Respond with a JSON object containing "result" and "remarks".`;
+## Your Task
+1. First, review the company information provided above
+2. If ANY information needed for the criterion is missing, use the appropriate tool to find it
+3. Evaluate whether the company passes or fails the criterion
+4. Return your decision as JSON
+
+## Response Format
+Respond ONLY with a JSON object containing:
+- "result": one of "pass", "fail", "inconclusive", or "error"
+  - Use "pass" if the company clearly meets the criterion
+  - Use "fail" if the company clearly does not meet the criterion
+  - Use "inconclusive" ONLY if you've tried relevant tools and still can't find sufficient data
+  - Use "error" only if you cannot process the request
+- "remarks": A brief explanation of your decision (1-2 sentences), including what sources you used
+
+Respond with the JSON object only, no additional text.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,8 +101,12 @@ export async function POST(request: NextRequest) {
     // Build company context string
     const companyContext = buildCompanyContext(company);
 
-    // Create the evaluation prompt
+    // Get dynamically injected tool descriptions
+    const toolDescriptions = getToolDescriptions();
+
+    // Create the evaluation prompt with tool descriptions
     const evaluationPrompt = SCREENING_PROMPT_TEMPLATE
+      .replace("{toolDescriptions}", toolDescriptions)
       .replace("{companyContext}", companyContext)
       .replace("{criteriaPrompt}", criteriaPrompt);
 
