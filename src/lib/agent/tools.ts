@@ -20,52 +20,52 @@ function getSupabaseClient() {
   return createClient(url, key);
 }
 
+export const companiesSchema = [
+  // Core identifiers
+  { name: "id", type: "uuid" },
+  { name: "entry_id", type: "integer" },
+  { name: "watchlist_id", type: "integer" },
+  // Basic info
+  { name: "target", type: "text" },
+  { name: "segment", type: "text" },
+  { name: "segment_related_offerings", type: "text" },
+  { name: "company_focus", type: "text" },
+  { name: "website", type: "text" },
+  { name: "watchlist_status", type: "text" },
+  { name: "pipeline_stage", type: "text" },
+  { name: "comments", type: "text" },
+  { name: "ownership", type: "text" },
+  { name: "geography", type: "text" },
+  // Revenue (USD Mn)
+  { name: "revenue_2021_usd_mn", type: "numeric" },
+  { name: "revenue_2022_usd_mn", type: "numeric" },
+  { name: "revenue_2023_usd_mn", type: "numeric" },
+  { name: "revenue_2024_usd_mn", type: "numeric" },
+  // EBITDA (USD Mn)
+  { name: "ebitda_2021_usd_mn", type: "numeric" },
+  { name: "ebitda_2022_usd_mn", type: "numeric" },
+  { name: "ebitda_2023_usd_mn", type: "numeric" },
+  { name: "ebitda_2024_usd_mn", type: "numeric" },
+  // Valuation
+  { name: "ev_2024", type: "numeric" },
+  { name: "ev_ebitda_2024", type: "numeric" },
+  // Growth metrics
+  { name: "revenue_cagr_2021_2022", type: "numeric" },
+  { name: "revenue_cagr_2022_2023", type: "numeric" },
+  { name: "revenue_cagr_2023_2024", type: "numeric" },
+  // Margins
+  { name: "ebitda_margin_2021", type: "numeric" },
+  { name: "ebitda_margin_2022", type: "numeric" },
+  { name: "ebitda_margin_2023", type: "numeric" },
+  { name: "ebitda_margin_2024", type: "numeric" },
+];
+
 /**
  * Get the schema of the companies data including column names and types.
  */
 export const getDataSchema = tool(
   async () => {
     logger.debug("🔧 TOOL CALLED: get_data_schema()");
-
-    const columns = [
-      // Core identifiers
-      { name: "id", type: "uuid" },
-      { name: "entry_id", type: "integer" },
-      { name: "watchlist_id", type: "integer" },
-      // Basic info
-      { name: "target", type: "text" },
-      { name: "segment", type: "text" },
-      { name: "segment_related_offerings", type: "text" },
-      { name: "company_focus", type: "text" },
-      { name: "website", type: "text" },
-      { name: "watchlist_status", type: "text" },
-      { name: "pipeline_stage", type: "text" },
-      { name: "comments", type: "text" },
-      { name: "ownership", type: "text" },
-      { name: "geography", type: "text" },
-      // Revenue (USD Mn)
-      { name: "revenue_2021_usd_mn", type: "numeric" },
-      { name: "revenue_2022_usd_mn", type: "numeric" },
-      { name: "revenue_2023_usd_mn", type: "numeric" },
-      { name: "revenue_2024_usd_mn", type: "numeric" },
-      // EBITDA (USD Mn)
-      { name: "ebitda_2021_usd_mn", type: "numeric" },
-      { name: "ebitda_2022_usd_mn", type: "numeric" },
-      { name: "ebitda_2023_usd_mn", type: "numeric" },
-      { name: "ebitda_2024_usd_mn", type: "numeric" },
-      // Valuation
-      { name: "ev_2024", type: "numeric" },
-      { name: "ev_ebitda_2024", type: "numeric" },
-      // Growth metrics
-      { name: "revenue_cagr_2021_2022", type: "numeric" },
-      { name: "revenue_cagr_2022_2023", type: "numeric" },
-      { name: "revenue_cagr_2023_2024", type: "numeric" },
-      // Margins
-      { name: "ebitda_margin_2021", type: "numeric" },
-      { name: "ebitda_margin_2022", type: "numeric" },
-      { name: "ebitda_margin_2023", type: "numeric" },
-      { name: "ebitda_margin_2024", type: "numeric" },
-    ];
 
     // Get row count from Supabase
     let rowCount = 0;
@@ -79,13 +79,13 @@ export const getDataSchema = tool(
       logger.error(`Error getting row count: ${(error as Error).message}`);
     }
 
-    const columnsInfo = columns.map((col) => `  - ${col.name} (${col.type})`);
+    const columnsInfo = companiesSchema.map((col) => `  - ${col.name} (${col.type})`);
 
     const result = `## Companies Data Schema
 
 **Table:** companies
 **Total Rows:** ${rowCount}
-**Key Columns (${columns.length} total):**
+**Key Columns (${companiesSchema.length} total):**
 
 ${columnsInfo.join("\n")}
 
@@ -93,7 +93,7 @@ Use the query_companies tool to search and filter company data.
 Use the get_company_stats tool for aggregate statistics.
 `;
 
-    logger.debug(`✓ Schema retrieved: ${columns.length} columns, ${rowCount} rows`);
+    logger.debug(`✓ Schema retrieved: ${companiesSchema.length} columns, ${rowCount} rows`);
     return result;
   },
   {
