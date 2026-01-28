@@ -16,6 +16,7 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
   SidebarFooter,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import {
   Briefcase,
@@ -24,6 +25,7 @@ import {
   Database,
   Bot,
   LogOut,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatbotWidget } from '@/components/chat/ChatbotWidget';
@@ -55,17 +57,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <ProtectedRoute>
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
-          <Sidebar className="border-r border-sidebar-border">
-            <SidebarHeader className="border-b border-sidebar-border p-4">
-              <Link href="/dashboard" className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
-                  <Briefcase className="h-5 w-5 text-sidebar-primary-foreground" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-sidebar-foreground">M&A Tracker</span>
-                  <span className="text-xs text-sidebar-foreground/60">Deal Pipeline</span>
-                </div>
-              </Link>
+          <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+            <SidebarHeader className="border-b border-sidebar-border p-2 group-data-[state=expanded]:p-4">
+              <div className="flex items-center justify-between group-data-[state=collapsed]:flex-col group-data-[state=collapsed]:gap-2">
+                <Link href="/dashboard" className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary shrink-0">
+                    <Briefcase className="h-4 w-4 text-sidebar-primary-foreground" />
+                  </div>
+                  <div className="flex flex-col group-data-[state=collapsed]:hidden">
+                    <span className="text-sm font-semibold text-sidebar-foreground">M&A Tracker</span>
+                    <span className="text-xs text-sidebar-foreground/60">Deal Pipeline</span>
+                  </div>
+                </Link>
+                <SidebarTrigger className="h-8 w-8 shrink-0" />
+              </div>
             </SidebarHeader>
 
             <SidebarContent>
@@ -104,11 +109,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
 
 
-            <SidebarFooter className="border-t border-sidebar-border p-4">
+            <SidebarFooter className="border-t border-sidebar-border p-2 group-data-[state=expanded]:p-4">
               <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                {/* User info - hidden when collapsed */}
+                <div className="flex items-center justify-between group-data-[state=collapsed]:hidden">
                   {user && (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0">
                       <p className="truncate text-sm font-medium text-sidebar-foreground">
                         {user.name}
                       </p>
@@ -119,14 +125,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   )}
                   <ThemeToggle />
                 </div>
+                {/* Sign out button */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleSignOut}
-                  className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                  className="justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:p-2"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
+                  <LogOut className="h-4 w-4 group-data-[state=expanded]:mr-2" />
+                  <span className="group-data-[state=collapsed]:hidden">Sign Out</span>
                 </Button>
               </div>
             </SidebarFooter>
