@@ -26,6 +26,11 @@ import {
   Bot,
   LogOut,
   PanelLeftOpen,
+  Inbox,
+  Send,
+  Search,
+  FileSliders,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatbotWidget } from '@/components/chat/ChatbotWidget';
@@ -43,6 +48,11 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Pipeline', href: '/pipeline', icon: GitBranch },
   { name: 'Master Data', href: '/master-data', icon: Database },
+  { name: 'Inbound Deal Sourcing', href: '#', icon: Inbox, disabled: true },
+  { name: 'Outbound Deal Sourcing', href: '#', icon: Send, disabled: true },
+  { name: 'Company Deep Dive', href: '#', icon: Search, disabled: true },
+  { name: 'Slide Generator', href: '#', icon: FileSliders, disabled: true },
+  { name: 'Banker Relations', href: '#', icon: Users, disabled: true },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -80,24 +90,34 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <SidebarMenu>
                     {navigation.map((item) => {
                       const isActive = pathname === item.href ||
-                        (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                        (item.href !== '/dashboard' && item.href !== '#' && pathname.startsWith(item.href));
                       const isAIDiscovery = item.href === '/ai-discovery';
+                      const isDisabled = 'disabled' in item && item.disabled;
+
                       return (
                         <SidebarMenuItem key={item.name}>
                           <SidebarMenuButton
-                            asChild
+                            asChild={!isDisabled}
                             isActive={isActive}
                             className={cn(
                               'transition-colors',
-                              isAIDiscovery && 'text-purple-400 hover:text-purple-300 hover:bg-purple-500/10',
+                              isDisabled && 'opacity-50 cursor-not-allowed',
+                              isAIDiscovery && !isDisabled && 'text-purple-400 hover:text-purple-300 hover:bg-purple-500/10',
                               isActive && !isAIDiscovery && 'bg-sidebar-accent text-sidebar-accent-foreground',
                               isActive && isAIDiscovery && 'bg-purple-500/20 text-purple-300'
                             )}
                           >
-                            <Link href={item.href}>
-                              <item.icon className={cn("h-4 w-4", isAIDiscovery && "text-purple-400")} />
-                              <span>{item.name}</span>
-                            </Link>
+                            {isDisabled ? (
+                              <div className="flex items-center gap-2">
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.name}</span>
+                              </div>
+                            ) : (
+                              <Link href={item.href}>
+                                <item.icon className={cn("h-4 w-4", isAIDiscovery && "text-purple-400")} />
+                                <span>{item.name}</span>
+                              </Link>
+                            )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       );
