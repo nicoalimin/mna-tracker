@@ -150,18 +150,22 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
 
     setScanning(true);
     try {
-      const { data, error } = await supabase.functions.invoke('market-screening', {
-        body: {
+      const response = await fetch('/api/market-screening', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           thesisId: thesis.id,
           thesis: thesis.content,
           sourcesCount: thesis.sources_count,
-        },
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to run market screening');
       }
 
       toast.success(`Found ${data.count} matching companies`);
