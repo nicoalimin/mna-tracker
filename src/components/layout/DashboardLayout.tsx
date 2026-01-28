@@ -132,8 +132,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </SidebarFooter>
           </Sidebar>
 
-          <SidebarInset className="flex flex-1 flex-col">
-            <main className="flex-1 overflow-auto">
+          <SidebarInset className="flex flex-1 flex-col min-w-0">
+            <main className="flex-1 overflow-auto min-w-0 w-full">
               {children}
             </main>
           </SidebarInset>

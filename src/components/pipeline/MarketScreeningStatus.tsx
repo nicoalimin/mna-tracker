@@ -93,7 +93,7 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
 
       if (thesis) {
         // Update existing thesis
-        const { error } =         await (supabase as any)
+        const { error } = await (supabase as any)
           .from('investment_thesis')
           .update({
             title: thesisTitle,
@@ -116,7 +116,7 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
           nextScan.setMonth(nextScan.getMonth() + 1);
         }
 
-        const { data, error } =         await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('investment_thesis')
           .insert({
             title: thesisTitle || 'Default Thesis',
@@ -187,7 +187,7 @@ export default function MarketScreeningStatus({ onScanComplete, newCandidatesCou
 
   return (
     <div className="border border-purple-200 dark:border-purple-800/50 rounded-lg px-4 py-3 bg-gradient-to-r from-purple-50/80 to-violet-50/50 dark:from-purple-950/30 dark:to-violet-950/20">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         {/* Status indicator */}
         <div className="flex items-center gap-2 shrink-0">
           <div className={`w-2.5 h-2.5 rounded-full ${isActive ? 'bg-purple-500 animate-pulse' : 'bg-muted-foreground'}`} />
