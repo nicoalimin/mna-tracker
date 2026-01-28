@@ -4,6 +4,7 @@
 
 -- Add new columns to market_screening_results (matching companiesSchema)
 ALTER TABLE market_screening_results
+  ADD COLUMN IF NOT EXISTS segment TEXT,
   ADD COLUMN IF NOT EXISTS target TEXT,
   ADD COLUMN IF NOT EXISTS segment_related_offerings TEXT,
   ADD COLUMN IF NOT EXISTS company_focus TEXT,
