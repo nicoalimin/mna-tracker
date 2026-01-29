@@ -48,11 +48,11 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Pipeline', href: '/pipeline', icon: GitBranch },
   { name: 'Master Data', href: '/master-data', icon: Database },
-  { name: 'Inbound Deal Sourcing', href: '#', icon: Inbox, disabled: true },
-  { name: 'Outbound Deal Sourcing', href: '#', icon: Send, disabled: true },
-  { name: 'Company Deep Dive', href: '#', icon: Search, disabled: true },
-  { name: 'Slide Generator', href: '#', icon: FileSliders, disabled: true },
-  { name: 'Banker Relations', href: '#', icon: Users, disabled: true },
+  // { name: 'Inbound Deal Sourcing', href: '#', icon: Inbox, disabled: true },
+  // { name: 'Outbound Deal Sourcing', href: '#', icon: Send, disabled: true },
+  // { name: 'Company Deep Dive', href: '#', icon: Search, disabled: true },
+  // { name: 'Slide Generator', href: '#', icon: FileSliders, disabled: true },
+  // { name: 'Banker Relations', href: '#', icon: Users, disabled: true },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
