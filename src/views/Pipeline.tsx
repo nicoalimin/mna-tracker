@@ -667,6 +667,7 @@ export default function Pipeline() {
                                         </button>
                                       </TableHead>
                                       <TableHead className="text-center">Source</TableHead>
+                                      <TableHead className="text-center">Actions</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -714,6 +715,21 @@ export default function Pipeline() {
                                           <Badge variant="outline">
                                             {company.pipeline_stage}
                                           </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setPromotingCompany(company);
+                                              setPromoteDialogOpen(true);
+                                            }}
+                                          >
+                                            <ChevronRight className="h-4 w-4 mr-1" />
+                                            Promote to L1
+                                          </Button>
                                         </TableCell>
                                       </TableRow>
                                     ))}

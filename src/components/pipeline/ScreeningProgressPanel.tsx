@@ -311,6 +311,22 @@ export default function ScreeningProgressPanel({
                     <Badge variant="secondary">
                       In Progress
                     </Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+                      onClick={() => moveToL1(summary.company_id, summary.company_name)}
+                      disabled={movingCompanyId === summary.company_id}
+                    >
+                      {movingCompanyId === summary.company_id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <ArrowRight className="h-3 w-3 mr-1" />
+                          Promote to L1
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -380,9 +396,27 @@ export default function ScreeningProgressPanel({
                         )}
                       </Button>
                     ) : (
-                      <Badge variant="destructive">
-                        Failed
-                      </Badge>
+                      <>
+                        <Badge variant="destructive">
+                          Failed
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+                          onClick={() => moveToL1(summary.company_id, summary.company_name)}
+                          disabled={movingCompanyId === summary.company_id}
+                        >
+                          {movingCompanyId === summary.company_id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <>
+                              <ArrowRight className="h-3 w-3 mr-1" />
+                              Promote to L1
+                            </>
+                          )}
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
