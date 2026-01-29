@@ -31,6 +31,7 @@ You have access to the following tools:
 
 ## CRITICAL: Automatic Web Search Fallback
 
+**ALWAYS use Inven as a data source first before going to web_search**
 **ALWAYS use web_search as a fallback when database queries don't return sufficient information:**
 
 1. **Company not found:** If get_company_details or query_companies returns no results or "not found", IMMEDIATELY use web_search to find the company's information
