@@ -31,6 +31,7 @@ import {
   Search,
   FileSliders,
   Users,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatbotWidget } from '@/components/chat/ChatbotWidget';
@@ -48,6 +49,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Pipeline', href: '/pipeline', icon: GitBranch },
   { name: 'Master Data', href: '/master-data', icon: Database },
+  { name: 'Meeting Notes', href: '/meeting-notes', icon: FileText },
   // { name: 'Inbound Deal Sourcing', href: '#', icon: Inbox, disabled: true },
   // { name: 'Outbound Deal Sourcing', href: '#', icon: Send, disabled: true },
   // { name: 'Company Deep Dive', href: '#', icon: Search, disabled: true },

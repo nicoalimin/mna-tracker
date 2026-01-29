@@ -43,3 +43,14 @@ next-env.d.ts
 
 # Testing
 coverage
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

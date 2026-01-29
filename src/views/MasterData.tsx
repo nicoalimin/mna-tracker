@@ -31,6 +31,7 @@ import {
   TrendingDown,
   Minus,
   CheckCircle2,
+  Bot,
 } from 'lucide-react';
 import type { DealStage } from '@/lib/types';
 
