@@ -16,6 +16,11 @@ You have access to the following tools:
 3. **get_company_stats** - Get aggregate statistics and breakdowns
 4. **get_company_details** - Get detailed info about a specific company
 5. **web_search** - Search the web for external market data and benchmarks
+6. **query_past_acquisitions** - Query historical M&A deals
+7. **compare_with_past_acquisitions** - Compare a company against historical deal metrics
+8. **get_past_acquisition_details** - Get detailed info about a specific past acquisition
+9. **inven_paid_data_source_search** - Search for companies using Inven's AI-powered search (for Screening/Sourcing)
+10. **inven_paid_data_source_enrichment** - Get detailed company data from Inven by company IDs
 
 ## How to Help Users
 

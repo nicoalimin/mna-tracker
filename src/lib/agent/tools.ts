@@ -60,6 +60,31 @@ export const companiesSchema = [
   { name: "ebitda_margin_2024", type: "numeric" },
 ];
 
+export const invenCacheSchema = [
+  // Inven-specific identifiers
+  { name: "inven_company_id", type: "text" },
+  { name: "domain", type: "text" },
+  { name: "inven_company_name", type: "text" },
+  { name: "website", type: "text" },
+  { name: "linkedin", type: "text" },
+  { name: "description", type: "text" },
+  { name: "logo_url", type: "text" },
+  // Headcount
+  { name: "headcount_min", type: "integer" },
+  { name: "headcount_max", type: "integer" },
+  { name: "employee_count", type: "integer" },
+  // Financial estimates
+  { name: "revenue_estimate_usd_millions", type: "numeric" },
+  // Company info
+  { name: "ownership", type: "text" },
+  { name: "founded_year", type: "integer" },
+  { name: "headquarters_city", type: "text" },
+  { name: "headquarters_state", type: "text" },
+  { name: "headquarters_country_code", type: "text" },
+  // Plus all companies columns for enrichment
+  ...companiesSchema,
+];
+
 /**
  * Get the schema of the companies data including column names and types.
  */
@@ -1055,6 +1080,291 @@ Returns:
   }
 );
 
+/**
+ * Inven Paid Data Source Search
+ * Searches for companies using Inven's AI-powered search.
+ * Uses cache-first approach, then falls back to Inven API.
+ */
+export const invenPaidDataSourceSearch = tool(
+  async ({
+    search_prompt,
+    number_of_results = 10,
+  }: {
+    search_prompt: string;
+    number_of_results?: number;
+  }) => {
+    logger.debug(
+      `🔧 TOOL CALLED: inven_paid_data_source_search(prompt='${search_prompt}', limit=${number_of_results})`
+    );
+
+    try {
+      const supabase = getSupabaseClient();
+
+      // First, check cache for matching companies
+      const { data: cachedResults, error: cacheError } = await supabase
+        .from("inven_cache")
+        .select("inven_company_id, domain, inven_company_name, website")
+        .or(`inven_company_name.ilike.%${search_prompt}%,description.ilike.%${search_prompt}%`)
+        .limit(number_of_results);
+
+      if (!cacheError && cachedResults && cachedResults.length > 0) {
+        logger.debug(`✓ Found ${cachedResults.length} cached results`);
+
+        const rows = cachedResults.map((c) =>
+          `${c.inven_company_name || "N/A"} | ${c.domain || "-"} | ${c.website || "-"} | ${c.inven_company_id}`
+        );
+
+        let result = `**Cached Results (${cachedResults.length} companies):**\n\n`;
+        result += `| Company Name | Domain | Website | Inven Company ID |\n`;
+        result += `| --- | --- | --- | --- |\n`;
+        result += rows.map((row) => `| ${row} |`).join("\n");
+        result += `\n\n*Note: Results from cache. Use inven_paid_data_source_enrichment to get full details.*`;
+
+        return result;
+      }
+
+      // If not in cache, call Inven API
+      const apiKey = process.env.INVEN_API_KEY;
+      if (!apiKey) {
+        logger.warn("INVEN_API_KEY not set");
+        return "Inven search is not available. INVEN_API_KEY environment variable is not set.";
+      }
+
+      logger.debug("Calling Inven API for company search...");
+
+      const response = await fetch("https://api.inven.ai/public-api/v1/company-search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          filters: {
+            prompt: search_prompt,
+          },
+          numberOfResults: number_of_results,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`Inven API error: ${response.status} - ${errorText}`);
+        return `**Inven API Error:** ${response.status} - ${errorText}`;
+      }
+
+      const data = await response.json();
+      const companies = data.companies || [];
+
+      if (companies.length === 0) {
+        return `No companies found matching: "${search_prompt}"`;
+      }
+
+      // Format results
+      const rows = companies.map((c: { companyName: string; domain: string; website: string; companyId: string }) =>
+        `${c.companyName || "N/A"} | ${c.domain || "-"} | ${c.website || "-"} | ${c.companyId}`
+      );
+
+      let result = `**Inven Search Results (${companies.length} companies):**\n\n`;
+      result += `| Company Name | Domain | Website | Inven Company ID |\n`;
+      result += `| --- | --- | --- | --- |\n`;
+      result += rows.map((row: string) => `| ${row} |`).join("\n");
+      result += `\n\n*Use inven_paid_data_source_enrichment with the Inven Company IDs to get detailed data and save to cache.*`;
+
+      logger.debug(`✓ Inven search returned ${companies.length} companies`);
+      return result;
+    } catch (error) {
+      logger.error(`Inven search error: ${(error as Error).message}`);
+      return `**Error:** ${(error as Error).message}`;
+    }
+  },
+  {
+    name: "inven_paid_data_source_search",
+    description: `Search for companies using Inven's AI-powered company search.
+
+Use this tool for Screening and Sourcing scenarios when you need to find companies.
+The tool first checks the local cache, then falls back to the Inven API if not found.
+
+Examples of search prompts:
+- "Petrochemical companies in Korea with enterprise value less than USD 1 billion"
+- "Technology company in the US with headcount of above 100 and revenue below USD 50 million"
+- "Get me the company ID of Exxon Mobil"
+
+Args:
+    search_prompt: A specific natural language search prompt describing the companies you want to find
+    number_of_results: Maximum number of results to return (default: 10)
+
+Returns:
+    A table of matching companies with Company ID, Domain, Name, and Website for further enrichment.`,
+    schema: z.object({
+      search_prompt: z.string().describe("Natural language search prompt for finding companies"),
+      number_of_results: z.number().optional().default(10).describe("Maximum number of results to return"),
+    }),
+  }
+);
+
+/**
+ * Inven Paid Data Source Enrichment
+ * Gets detailed company data from Inven by company IDs and saves to cache.
+ */
+export const invenPaidDataSourceEnrichment = tool(
+  async ({
+    company_ids,
+  }: {
+    company_ids: string[];
+  }) => {
+    logger.debug(
+      `🔧 TOOL CALLED: inven_paid_data_source_enrichment(company_ids=[${company_ids.join(", ")}])`
+    );
+
+    if (!company_ids || company_ids.length === 0) {
+      return "**Error:** No company IDs provided. Use inven_paid_data_source_search first to get company IDs.";
+    }
+
+    try {
+      const supabase = getSupabaseClient();
+      const apiKey = process.env.INVEN_API_KEY;
+
+      if (!apiKey) {
+        logger.warn("INVEN_API_KEY not set");
+        return "Inven enrichment is not available. INVEN_API_KEY environment variable is not set.";
+      }
+
+      logger.debug(`Calling Inven API for ${company_ids.length} companies...`);
+
+      // Build identifiers array
+      const identifiers = company_ids.map((id) => ({
+        companyId: id,
+        domain: null,
+      }));
+
+      const response = await fetch("https://api.inven.ai/public-api/v1/company-data-bulk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          identifiers,
+          selections: ["basic"],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`Inven API error: ${response.status} - ${errorText}`);
+        return `**Inven API Error:** ${response.status} - ${errorText}`;
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+
+      if (results.length === 0) {
+        return `No data found for the provided company IDs.`;
+      }
+
+      // Save to cache and format results
+      const enrichedCompanies: {
+        companyId: string;
+        companyName: string;
+        domain: string;
+        website: string;
+        description: string;
+        country: string;
+        headcount: string;
+        revenue: string;
+        ownership: string;
+      }[] = [];
+
+      for (const result of results) {
+        const basic = result.basic;
+        if (!basic) continue;
+
+        // Upsert to inven_cache
+        const cacheRecord = {
+          inven_company_id: basic.companyId,
+          domain: basic.domain,
+          inven_company_name: basic.companyName,
+          website: basic.website,
+          linkedin: basic.linkedin,
+          description: basic.description,
+          logo_url: basic.logoUrl,
+          headcount_min: basic.headcount?.min,
+          headcount_max: basic.headcount?.max,
+          employee_count: basic.employeeCount,
+          revenue_estimate_usd_millions: basic.revenueEstimateUsdMillions,
+          ownership: basic.ownership,
+          founded_year: basic.foundedYear,
+          headquarters_city: basic.headquarters?.city,
+          headquarters_state: basic.headquarters?.state,
+          headquarters_country_code: basic.headquarters?.countryCode,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: upsertError } = await supabase
+          .from("inven_cache")
+          .upsert(cacheRecord, { onConflict: "inven_company_id" });
+
+        if (upsertError) {
+          logger.error(`Cache upsert error for ${basic.companyId}: ${upsertError.message}`);
+        } else {
+          logger.debug(`✓ Cached company ${basic.companyId}`);
+        }
+
+        enrichedCompanies.push({
+          companyId: basic.companyId,
+          companyName: basic.companyName,
+          domain: basic.domain,
+          website: basic.website,
+          description: basic.description,
+          country: basic.headquarters?.countryCode || "N/A",
+          headcount: basic.employeeCount ? String(basic.employeeCount) : (basic.headcount ? `${basic.headcount.min}-${basic.headcount.max}` : "N/A"),
+          revenue: basic.revenueEstimateUsdMillions ? `$${basic.revenueEstimateUsdMillions}M` : "N/A",
+          ownership: basic.ownership || "N/A",
+        });
+      }
+
+      // Format detailed results
+      let result = `**Enriched Company Data (${enrichedCompanies.length} companies):**\n\n`;
+
+      for (const company of enrichedCompanies) {
+        result += `### ${company.companyName}\n`;
+        result += `- **Inven Company ID:** ${company.companyId}\n`;
+        result += `- **Domain:** ${company.domain}\n`;
+        result += `- **Website:** ${company.website}\n`;
+        result += `- **Country:** ${company.country}\n`;
+        result += `- **Headcount:** ${company.headcount}\n`;
+        result += `- **Revenue Estimate:** ${company.revenue}\n`;
+        result += `- **Ownership:** ${company.ownership}\n`;
+        result += `- **Description:** ${company.description || "N/A"}\n\n`;
+      }
+
+      result += `*Data has been cached for future queries.*`;
+
+      logger.debug(`✓ Enriched and cached ${enrichedCompanies.length} companies`);
+      return result;
+    } catch (error) {
+      logger.error(`Inven enrichment error: ${(error as Error).message}`);
+      return `**Error:** ${(error as Error).message}`;
+    }
+  },
+  {
+    name: "inven_paid_data_source_enrichment",
+    description: `Get detailed company data from Inven by company IDs.
+
+Use this tool ONLY when you have Inven Company IDs (from inven_paid_data_source_search).
+The tool fetches detailed company data and saves it to the local cache for future use.
+
+Args:
+    company_ids: Array of Inven Company IDs to enrich (e.g., ["3588005", "179942"])
+
+Returns:
+    Detailed company profiles including description, headcount, revenue estimates, ownership, and headquarters.`,
+    schema: z.object({
+      company_ids: z.array(z.string()).describe("Array of Inven Company IDs to enrich"),
+    }),
+  }
+);
+
 // Export all tools as an array
 export const tools = [
   getDataSchema,
@@ -1065,6 +1375,8 @@ export const tools = [
   queryPastAcquisitions,
   compareWithPastAcquisitions,
   getPastAcquisitionDetails,
+  invenPaidDataSourceSearch,
+  invenPaidDataSourceEnrichment,
 ];
 
 /**
@@ -1081,6 +1393,8 @@ export function getToolDescriptions(): string {
     { name: "query_past_acquisitions", description: "Query historical M&A deals by sector, country, status, or year" },
     { name: "compare_with_past_acquisitions", description: "Compare a company against historical acquisition metrics" },
     { name: "get_past_acquisition_details", description: "Get detailed information about a specific past acquisition" },
+    { name: "inven_paid_data_source_search", description: "Search for companies using Inven's AI-powered search for Screening and Sourcing" },
+    { name: "inven_paid_data_source_enrichment", description: "Get detailed company data from Inven by company IDs and cache results" },
   ];
 
   return toolInfo.map((t, i) => `${i + 1}. **${t.name}** - ${t.description}`).join("\n");
