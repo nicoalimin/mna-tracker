@@ -196,6 +196,49 @@ export default function AIScreeningDialog({
     setIsScreening(true);
 
     try {
+      // Step 0: Add Missing Data - Refresh and enrich company data first
+      toast.info('Step 1/2: Adding missing company data...');
+
+      try {
+        const addMissingDataResponse = await fetch('/api/add-missing-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companies: companies.map(c => ({
+              id: c.id,
+              name: c.target || c.name,
+              segment: c.segment,
+              geography: c.geography,
+              company_focus: c.company_focus,
+              ownership: c.ownership,
+              website: c.website,
+              revenue_2022_usd_mn: c.revenue_2022_usd_mn,
+              revenue_2023_usd_mn: c.revenue_2023_usd_mn,
+              revenue_2024_usd_mn: c.revenue_2024_usd_mn,
+              ebitda_2022_usd_mn: c.ebitda_2022_usd_mn,
+              ebitda_2023_usd_mn: c.ebitda_2023_usd_mn,
+              ebitda_2024_usd_mn: c.ebitda_2024_usd_mn,
+              ev_2024: c.ev_2024,
+            })),
+          }),
+        });
+
+        const addMissingDataResult = await addMissingDataResponse.json();
+        if (addMissingDataResult.success) {
+          const updatedCount = addMissingDataResult.results?.filter((r: { updated: boolean }) => r.updated).length || 0;
+          if (updatedCount > 0) {
+            toast.success(`Updated data for ${updatedCount} companies`);
+          } else {
+            toast.info('No missing data to add');
+          }
+        }
+      } catch (error) {
+        console.error('Add missing data error:', error);
+        toast.warning('Could not enrich company data, proceeding with available data');
+      }
+
+      toast.info('Step 2/2: Running AI screening...');
+
       // Step 1: Create pending screening entries for all company × criteria combinations
       const screeningEntries: { id: string; company_id: string; criteria_id: string }[] = [];
       const insertPromises: Promise<any>[] = [];
@@ -252,36 +295,45 @@ export default function AIScreeningDialog({
       onOpenChange(false);
       onComplete();
 
-      // Step 2: Fire off AI API calls in the background (don't await)
+      // Step 2: Fetch updated company data (to get any enriched data from Step 0)
+      const { data: refreshedCompanies } = await supabase
+        .from('companies')
+        .select('*')
+        .in('id', companies.map(c => c.id));
+
+      const companyMap = new Map(refreshedCompanies?.map(c => [c.id, c]) || []);
+
+      // Step 3: Fire off AI API calls in the background (don't await)
       screeningEntries.forEach(async (entry) => {
-        const company = companies.find((c) => c.id === entry.company_id);
+        const originalCompany = companies.find((c) => c.id === entry.company_id);
+        const refreshedCompany = companyMap.get(entry.company_id) || originalCompany;
         const criterion = criteria.find((c) => c.id === entry.criteria_id);
 
-        if (!company || !criterion) return;
+        if (!refreshedCompany || !criterion) return;
 
         try {
           const response = await fetch('/api/ai-screening', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              companyId: company.id,
+              companyId: refreshedCompany.id,
               criteriaId: criterion.id,
               criteriaPrompt: criterion.prompt,
               company: {
-                id: company.id,
-                name: company.target || company.name,
-                segment: company.segment,
-                geography: company.geography,
-                company_focus: company.company_focus,
-                ownership: company.ownership,
-                website: company.website,
-                revenue_2022_usd_mn: company.revenue_2022_usd_mn,
-                revenue_2023_usd_mn: company.revenue_2023_usd_mn,
-                revenue_2024_usd_mn: company.revenue_2024_usd_mn,
-                ebitda_2022_usd_mn: company.ebitda_2022_usd_mn,
-                ebitda_2023_usd_mn: company.ebitda_2023_usd_mn,
-                ebitda_2024_usd_mn: company.ebitda_2024_usd_mn,
-                ev_2024: company.ev_2024,
+                id: refreshedCompany.id,
+                name: refreshedCompany.target || (originalCompany as Company)?.name || 'Unknown',
+                segment: refreshedCompany.segment,
+                geography: refreshedCompany.geography,
+                company_focus: refreshedCompany.company_focus,
+                ownership: refreshedCompany.ownership,
+                website: refreshedCompany.website,
+                revenue_2022_usd_mn: refreshedCompany.revenue_2022_usd_mn,
+                revenue_2023_usd_mn: refreshedCompany.revenue_2023_usd_mn,
+                revenue_2024_usd_mn: refreshedCompany.revenue_2024_usd_mn,
+                ebitda_2022_usd_mn: refreshedCompany.ebitda_2022_usd_mn,
+                ebitda_2023_usd_mn: refreshedCompany.ebitda_2023_usd_mn,
+                ebitda_2024_usd_mn: refreshedCompany.ebitda_2024_usd_mn,
+                ev_2024: refreshedCompany.ev_2024,
               },
             }),
           });
@@ -299,7 +351,7 @@ export default function AIScreeningDialog({
             })
             .eq('id', entry.id);
         } catch (error) {
-          console.error(`Screening error for ${company.id}/${criterion.id}:`, error);
+          console.error(`Screening error for ${refreshedCompany.id}/${criterion.id}:`, error);
           // Update as failed in database
           await supabase
             .from('screenings')
