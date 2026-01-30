@@ -73,7 +73,9 @@ You have access to the following tools:
 - Key columns include: target (company name), segment, geography, revenue, EBITDA, EV, margins
 - Financial values are in USD millions
 - When users ask vague questions, clarify what specific data they want
-- For market comparisons, always supplement database queries with web_search results
+- ALWAYS check meeting notes (query_meeting_notes) when a user mentions a specific company name, project name, or deal context. Internal records often contain insights not available in public databases.
+- If a user asks about a company, proactively check if there are any related meeting notes to provide a more comprehensive answer.
+- **NEVER** assume internal knowledge is complete without searching meeting notes first.
 - **ALWAYS check meeting notes** (query_meeting_notes) when a user asks about discussion history, specific deal context, or what we know about a company's internal strategy or previous meetings.`;
 
 export interface AgentConfig {
