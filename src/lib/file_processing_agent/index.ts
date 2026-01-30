@@ -20,8 +20,9 @@ ${companies_list}
 
 ## Process:
 1. Review the "Known Companies" list.
-2. Identify which of those companies appear in the text. There are also companie with codenames that may not appear in the Known Companies list, such as Project Utopia and Project Tulia. Also add these as companies detected.
-3. Final Output must be a valid JSON block containing:
+2. Identify which of those companies appear in the text.
+3. **Detect Codenames**: Actively scan for and include project codenames (such as "Project Utopia", "Project Tulia", "Project Notos", "Project gChem", etc.) even if they do not match the "Known Companies" list. Treat these as valid detected companies.
+4. Final Output must be a valid JSON block containing:
    - summary: A concise overview of the meeting/document.
    - key_points: Array of main takeaways.
    - action_items: Array of next steps.
@@ -104,11 +105,18 @@ export async function processFileContent(rawText: string) {
         const match = allReferences.find(r => r.name.toLowerCase() === (detectedName as string).toLowerCase());
         if (match) {
           finalMatchedCompanies.push(match);
+        } else {
+          finalMatchedCompanies.push({
+            id: null,
+            name: detectedName,
+            type: 'company',
+            similarity: 1
+          });
         }
       }
 
       // Add to final output
-      parsed.matched_companies = parsed.matched_companies.concat(finalMatchedCompanies);
+      parsed.matched_companies = finalMatchedCompanies;
 
       // Also trigger add_company_note logic if notes are present
       // We can do this here or let the API handler deal with it. 
