@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { uploadFile, getSignedUrl, generateMeetingNoteKey } from "@/lib/s3";
+import { uploadFile, getSignedUrl, generateMeetingNoteKey, downloadFile } from "@/lib/s3";
 import { extractTextFromFile } from "@/lib/fileExtractor";
 import { processFileContent } from "@/lib/file_processing_agent";
 
@@ -25,21 +25,19 @@ function getSupabaseClient() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const { key, fileName, contentType } = await request.json();
 
-    if (!file) {
+    if (!key || !fileName) {
       return NextResponse.json(
-        { error: "No file provided" },
+        { error: "key and fileName are required" },
         { status: 400 }
       );
     }
 
-    // Read file content and upload to S3
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const s3Key = generateMeetingNoteKey(file.name);
-    await uploadFile(buffer, s3Key, file.type || "application/octet-stream");
+    // Download file content from S3
+    const buffer = await downloadFile(key);
+    const s3Key = key;
+    const fileType = contentType || "application/octet-stream";
 
     const supabase = getSupabaseClient();
 
@@ -47,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { data: initialData, error: insertError } = await supabase
       .from("minutes_of_meeting")
       .insert({
-        file_name: file.name,
+        file_name: fileName,
         file_link: s3Key,
         processing_status: 'processing'
       })
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // 1. Extract raw text from supported formats
-      rawText = await extractTextFromFile(buffer, file.type || "application/octet-stream", file.name);
+      rawText = await extractTextFromFile(buffer, fileType, fileName);
 
       // 2. Invoke the agent to structure the text
       structuredResult = await processFileContent(rawText);

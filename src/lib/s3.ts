@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
 import { getSignedUrl as awsGetSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // S3 Configuration
@@ -77,6 +78,53 @@ export async function getSignedUrl(key: string, expiresIn: number = 3600): Promi
   });
 
   return awsGetSignedUrl(s3Client, command, { expiresIn });
+}
+
+/**
+ * Generate a pre-signed URL for uploading a file
+ * @param key - The S3 object key (path)
+ * @param contentType - The MIME type of the file
+ * @param expiresIn - URL expiration time in seconds (default: 15 minutes)
+ * @returns The pre-signed URL
+ */
+export async function getUploadSignedUrl(
+  key: string,
+  contentType: string,
+  expiresIn: number = 900
+): Promise<string> {
+  const s3Client = createS3Client();
+
+  const command = new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  return awsGetSignedUrl(s3Client, command, { expiresIn });
+}
+
+/**
+ * Download a file from S3
+ * @param key - The S3 object key (path)
+ * @returns The file content as a Buffer
+ */
+export async function downloadFile(key: string): Promise<Buffer> {
+  const s3Client = createS3Client();
+
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+  const stream = response.Body as Readable;
+
+  return new Promise((resolve, reject) => {
+    const chunks: any[] = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+  });
 }
 
 /**

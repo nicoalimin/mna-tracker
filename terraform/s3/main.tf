@@ -34,3 +34,18 @@ resource "aws_s3_bucket_public_access_block" "mna_meeting_notes_public_access" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
+
+resource "aws_s3_bucket_cors_configuration" "mna_meeting_notes_cors" {
+  bucket = aws_s3_bucket.mna_meeting_notes.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE"]
+    allowed_origins = [
+      "http://localhost:3000",
+      "https://mna-tracker.vercel.app"
+    ]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}

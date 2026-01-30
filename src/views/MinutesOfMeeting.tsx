@@ -167,26 +167,56 @@ export default function MinutesOfMeeting() {
       setUploadProgress({ current: i + 1, total: selectedFiles.length });
 
       try {
-        const formData = new FormData();
-        formData.append('file', file);
+        // 1. Get pre-signed URL
+        const fileName = file.name;
+        const contentType = file.type || 'application/octet-stream';
 
-        // Only append manual notes if uploading a single file
-        if (selectedFiles.length === 1) {
-          if (rawNotes) formData.append('raw_notes', rawNotes);
-          if (structuredNotes) formData.append('structured_notes', structuredNotes);
-        }
-
-        const response = await fetch('/api/meeting-notes', {
-          method: 'POST',
-          body: formData,
+        const urlParams = new URLSearchParams({
+          fileName,
+          contentType,
         });
 
-        const result = await response.json();
+        const presignedResponse = await fetch(`/api/meeting-notes/upload-url?${urlParams.toString()}`);
+        const presignedResult = await presignedResponse.json();
 
-        if (result.success) {
+        if (!presignedResult.success) {
+          throw new Error(presignedResult.error || 'Failed to get upload URL');
+        }
+
+        const { uploadUrl, key } = presignedResult.data;
+
+        // 2. Upload directly to S3
+        const s3Response = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': contentType,
+          },
+        });
+
+        if (!s3Response.ok) {
+          throw new Error('Failed to upload file to S3');
+        }
+
+        // 3. Notify server of completion
+        const notifyResponse = await fetch('/api/meeting-notes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            key,
+            fileName,
+            contentType,
+          }),
+        });
+
+        const notifyResult = await notifyResponse.json();
+
+        if (notifyResult.success) {
           results.success++;
         } else {
-          console.error(`Upload failed for ${file.name}:`, result.error);
+          console.error(`Processing failed for ${file.name}:`, notifyResult.error);
           results.failed++;
         }
       } catch (error) {
