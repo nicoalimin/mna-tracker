@@ -2,17 +2,8 @@
  * LangGraph agent with Anthropic Claude and company data query tools.
  */
 import { ChatAnthropic } from "@langchain/anthropic";
-import { HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import {
-  StateGraph,
-  StateSchema,
-  MessagesValue,
-  ReducedValue,
-  GraphNode,
-  START,
-  END,
-} from "@langchain/langgraph";
-import { z } from "zod";
+import { createAgent } from "langchain";
+import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import { tools } from "./tools";
 import { logger } from "./logger";
 
@@ -92,105 +83,36 @@ export interface AgentConfig {
 }
 
 export interface InvokeResult {
-  messages: string[];
+  messages: BaseMessage[];
 }
 
 /**
  * Create the LangGraph agent.
  */
-const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
-
-const MessagesState = new StateSchema({
-  messages: MessagesValue,
-  llmCalls: new ReducedValue(z.number() as any, {
-    reducer: (x: number, y: number) => x + y,
-  }),
-});
-
-const toolNode: GraphNode<typeof MessagesState> = async (state) => {
-  const lastMessage = state.messages.at(-1);
-
-  if (lastMessage == null || !AIMessage.isInstance(lastMessage)) {
-    return { messages: [] };
-  }
-
-  const result: ToolMessage[] = [];
-  for (const toolCall of lastMessage.tool_calls ?? []) {
-    const tool = toolsByName[toolCall.name];
-    if (!tool) {
-      logger.error(`Tool not found: ${toolCall.name}`);
-      continue;
-    }
-    const observation = await (tool as any).invoke(toolCall.args);
-    result.push(
-      new ToolMessage({
-        content: typeof observation === "string" ? observation : JSON.stringify(observation),
-        tool_call_id: toolCall.id!,
-      })
-    );
-  }
-
-  return { messages: result };
-};
-
-const createLLMCall = (modelWithTools: any): GraphNode<typeof MessagesState> => {
-  return async (state) => {
-    const response = await modelWithTools.invoke([
-      new SystemMessage(SYSTEM_PROMPT),
-      ...state.messages,
-    ]);
-    return {
-      messages: [response],
-      llmCalls: 1,
-    };
-  };
-};
-
-function shouldContinue(state: typeof MessagesState.State) {
-  const lastMessage = state.messages.at(-1);
-  if (
-    lastMessage &&
-    AIMessage.isInstance(lastMessage) &&
-    lastMessage.tool_calls &&
-    lastMessage.tool_calls.length > 0
-  ) {
-    return "toolNode";
-  }
-  return END;
-}
-/**
- * Create the LangGraph agent.
- */
-export async function createAgentLocal(config: AgentConfig) {
+export function createLocalAgent(config: AgentConfig) {
   const llm = new ChatAnthropic({
-    model: "claude-sonnet-4-5-20250929",
-    apiKey: config.apiKey,
+    model: "claude-sonnet-4-20250514",
+    anthropicApiKey: config.apiKey,
     temperature: 0,
   });
 
-  const modelWithTools = llm.bindTools(tools);
-  const llmCall = createLLMCall(modelWithTools);
+  const agent = createAgent({
+    model: llm,
+    tools,
+    systemPrompt: SYSTEM_PROMPT,
+  });
 
-  const workflow = new StateGraph(MessagesState)
-    .addNode("llmCall", llmCall)
-    .addNode("toolNode", toolNode)
-    .addEdge(START, "llmCall")
-    .addConditionalEdges("llmCall", shouldContinue, ["toolNode", END])
-    .addEdge("toolNode", "llmCall");
-
-  return workflow.compile();
+  return agent;
 }
 
 /**
  * Agent wrapper class for compatibility.
  */
-type Agent = Awaited<ReturnType<typeof createAgentLocal>>;
-
 export class AgentGraph {
-  private agent: Agent;
+  private agent: ReturnType<typeof createAgent>;
 
-  constructor(agent: Agent) {
-    this.agent = agent;
+  constructor(config: AgentConfig) {
+    this.agent = createLocalAgent(config);
   }
 
   /**
@@ -205,29 +127,19 @@ export class AgentGraph {
       const result = await this.agent.invoke(inputs);
       logger.debug("✓ Agent graph invocation completed");
 
-      // Extract content from result
-      let content = "";
-      if (result && typeof result === "object" && "messages" in result) {
-        const messagesList = result.messages as BaseMessage[];
-        if (messagesList && messagesList.length > 0) {
-          const lastMessage = messagesList[messagesList.length - 1];
-          content =
-            typeof lastMessage.content === "string"
-              ? lastMessage.content
-              : JSON.stringify(lastMessage.content);
-        }
-      } else {
-        content = JSON.stringify(result);
-      }
-
       logger.debug("✅ AGENT INVOCATION COMPLETED SUCCESSFULLY");
       logger.debug("=".repeat(60));
 
-      return { messages: [content] };
+      // Return full messages including tool calls
+      if (result && typeof result === "object" && "messages" in result) {
+        return { messages: result.messages as BaseMessage[] };
+      }
+
+      return { messages: [new AIMessage(JSON.stringify(result))] };
     } catch (error) {
       logger.error(`✗ AGENT INVOCATION FAILED: ${(error as Error).message}`);
       logger.debug("=".repeat(60));
-      return { messages: [`Error invoking agent: ${(error as Error).message}`] };
+      return { messages: [new AIMessage(`Error invoking agent: ${(error as Error).message}`)] };
     }
   }
 
@@ -237,12 +149,16 @@ export class AgentGraph {
   async ainvoke(inputs: { messages: BaseMessage[] }): Promise<InvokeResult> {
     return this.invoke(inputs);
   }
+
+  async streamEvents(inputs: { messages: BaseMessage[] }, config?: any) {
+    return this.agent.streamEvents(inputs, config);
+  }
 }
 
 // Create agent instance on demand
 let agentGraph: AgentGraph | null = null;
 
-export async function getAgentGraph(): Promise<AgentGraph | null> {
+export function getAgentGraph(): AgentGraph | null {
   if (agentGraph) {
     return agentGraph;
   }
@@ -254,15 +170,13 @@ export async function getAgentGraph(): Promise<AgentGraph | null> {
   }
 
   try {
-    const agent = await createAgentLocal({ apiKey });
-    agentGraph = new AgentGraph(agent);
+    agentGraph = new AgentGraph({ apiKey });
     return agentGraph;
   } catch (error) {
     logger.error(`Failed to create agent: ${(error as Error).message}`);
     return null;
   }
 }
-
 
 // Reset agent (useful for testing or config changes)
 export function resetAgent(): void {

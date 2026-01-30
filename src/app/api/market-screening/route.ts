@@ -150,7 +150,8 @@ Find ${sourcesCount} companies. Return ONLY the JSON object, no other text. Use 
       messages: [new HumanMessage(prompt)],
     });
 
-    const responseText = result.messages[0] || '';
+    const msg = result.messages[0];
+    const responseText = msg ? (typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)) : "";
 
     // Parse the JSON response
     let companies: DiscoveredCompany[] = [];
