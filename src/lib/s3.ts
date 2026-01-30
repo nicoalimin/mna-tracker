@@ -67,14 +67,20 @@ export async function deleteFile(key: string): Promise<void> {
  * Generate a pre-signed URL for accessing a file
  * @param key - The S3 object key (path)
  * @param expiresIn - URL expiration time in seconds (default: 1 hour)
+ * @param fileName - Optional original file name to force download with that name
  * @returns The pre-signed URL
  */
-export async function getSignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
+export async function getSignedUrl(
+  key: string,
+  expiresIn: number = 3600,
+  fileName?: string
+): Promise<string> {
   const s3Client = createS3Client();
 
   const command = new GetObjectCommand({
     Bucket: S3_BUCKET,
     Key: key,
+    ResponseContentDisposition: fileName ? `attachment; filename="${fileName}"` : undefined,
   });
 
   return awsGetSignedUrl(s3Client, command, { expiresIn });

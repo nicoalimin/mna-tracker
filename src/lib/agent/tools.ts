@@ -1480,6 +1480,126 @@ Returns:
   }
 );
 
+/**
+ * Query meeting notes based on matched companies, tags, or search terms.
+ */
+export const queryMeetingNotes = tool(
+  async ({
+    company_name,
+    tag,
+    search_term,
+    limit = 10,
+  }: {
+    company_name?: string;
+    tag?: string;
+    search_term?: string;
+    limit?: number;
+  }) => {
+    logger.debug(
+      `🔧 TOOL CALLED: query_meeting_notes(company='${company_name}', tag='${tag}', search='${search_term}')`
+    );
+
+    try {
+      const supabase = getSupabaseClient();
+
+      let query = supabase
+        .from("minutes_of_meeting")
+        .select("*")
+        .order('file_date', { ascending: false })
+        .limit(Math.min(limit, 20));
+
+      // Apply filters
+      if (company_name) {
+        query = query.or(`raw_notes.ilike.%${company_name}%,structured_notes.ilike.%${company_name}%,matched_companies.ilike.%${company_name}%`);
+      }
+
+      if (tag) {
+        query = query.contains('tags', [tag]);
+      }
+
+      if (search_term) {
+        query = query.or(
+          `file_name.ilike.%${search_term}%,raw_notes.ilike.%${search_term}%,structured_notes.ilike.%${search_term}%`
+        );
+      }
+
+      const { data: notes, error } = await query;
+
+      if (error) {
+        logger.error(`Query error: ${error.message}`);
+        return `**Query Error:** ${error.message}`;
+      }
+
+      if (!notes || notes.length === 0) {
+        return "No meeting notes found matching your criteria.";
+      }
+
+      return formatNotesResults(notes);
+    } catch (error) {
+      logger.error(`Query error: ${(error as Error).message}`);
+      return `**Error:** ${(error as Error).message}`;
+    }
+  },
+  {
+    name: "query_meeting_notes",
+    description: `Search and retrieve meeting notes.
+    
+Use this tool to find meeting records, summaries, and key points related to specific companies, tags, or topics.
+You can filter by company name, tag, or use a general search term.
+
+Args:
+    company_name: Filter by associated company name
+    tag: Filter by specific tag (e.g., "M&A", "Strategy", "Financials")
+    search_term: General search term for file name or note content
+    limit: Maximum number of results (default: 10, max: 20)
+
+Returns:
+    A summary of matching meeting notes.`,
+    schema: z.object({
+      company_name: z.string().optional().describe("Filter by company name"),
+      tag: z.string().optional().describe("Filter by tag"),
+      search_term: z.string().optional().describe("General search term"),
+      limit: z.number().optional().default(10).describe("Max results to return"),
+    }),
+  }
+);
+
+function formatNotesResults(notes: any[]): string {
+  let result = `**Meeting Notes Results (${notes.length} records):**\n\n`;
+
+  notes.forEach((note, index) => {
+    let structured = null;
+    try {
+      if (note.structured_notes) {
+        structured = typeof note.structured_notes === 'string'
+          ? JSON.parse(note.structured_notes)
+          : note.structured_notes;
+      }
+    } catch (e) { }
+
+    result += `### ${index + 1}. ${note.file_name}\n`;
+    result += `- **Date:** ${note.file_date || 'N/A'}\n`;
+    result += `- **Tags:** ${note.tags?.join(', ') || 'None'}\n`;
+
+    if (structured && structured.summary) {
+      result += `- **Summary:** ${structured.summary}\n`;
+    } else if (note.raw_notes) {
+      const excerpt = note.raw_notes.length > 200
+        ? note.raw_notes.substring(0, 200) + "..."
+        : note.raw_notes;
+      result += `- **Excerpt:** ${excerpt}\n`;
+    }
+
+    if (structured && structured.key_points && structured.key_points.length > 0) {
+      result += `- **Key Points:**\n  - ${structured.key_points.slice(0, 3).join('\n  - ')}\n`;
+    }
+
+    result += `\n`;
+  });
+
+  return result;
+}
+
 // Export all tools as an array
 export const tools = [
   getDataSchema,
@@ -1492,6 +1612,7 @@ export const tools = [
   getPastAcquisitionDetails,
   invenPaidDataSourceSearch,
   invenPaidDataSourceEnrichment,
+  queryMeetingNotes,
 ];
 
 /**
@@ -1510,6 +1631,7 @@ export function getToolDescriptions(): string {
     { name: "get_past_acquisition_details", description: "Get detailed information about a specific past acquisition" },
     { name: "inven_paid_data_source_search", description: "Search for companies using Inven's AI-powered search for Screening and Sourcing" },
     { name: "inven_paid_data_source_enrichment", description: "Get detailed company data from Inven by company IDs and cache results" },
+    { name: "query_meeting_notes", description: "Search and retrieve meeting notes related to companies, tags, or topics" },
   ];
 
   return toolInfo.map((t, i) => `${i + 1}. **${t.name}** - ${t.description}`).join("\n");

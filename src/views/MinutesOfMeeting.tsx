@@ -68,16 +68,16 @@ import FilePreview from '@/components/MeetingNotes/FilePreview';
 interface MeetingNote {
   id: string;
   file_name: string;
-  file_link: string;
   raw_notes: string | null;
   structured_notes: string | null;
-  tags: string[] | null;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
-  matched_companies: any[] | null;
+  tags: string[];
+  matched_companies: any[];
+  signed_url?: string;
+  download_url?: string;
   file_date: string | null;
   created_at: string;
   updated_at: string;
-  signed_url: string | null;
 }
 
 export default function MinutesOfMeeting() {
@@ -738,6 +738,7 @@ export default function MinutesOfMeeting() {
                                     {note.signed_url ? (
                                       <FilePreview
                                         url={note.signed_url}
+                                        downloadUrl={note.download_url}
                                         fileName={note.file_name}
                                       />
                                     ) : (
@@ -792,14 +793,14 @@ export default function MinutesOfMeeting() {
                                 </div>
                               </DialogContent>
                             </Dialog>
-                            {note.signed_url && (
+                            {(note.download_url || note.signed_url) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 asChild
                               >
                                 <a
-                                  href={note.signed_url}
+                                  href={note.download_url || note.signed_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   title="Download file"

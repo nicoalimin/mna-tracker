@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 
 interface FilePreviewProps {
   url: string;
+  downloadUrl?: string;
   fileName: string;
 }
 
-export default function FilePreview({ url, fileName }: FilePreviewProps) {
+export default function FilePreview({ url, downloadUrl, fileName }: FilePreviewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<string | null>(null);
@@ -75,7 +76,7 @@ export default function FilePreview({ url, fileName }: FilePreviewProps) {
         <AlertCircle className="h-8 w-8" />
         <p>{error}</p>
         <Button variant="outline" size="sm" asChild>
-          <a href={url} target="_blank" rel="noopener noreferrer">
+          <a href={downloadUrl || url} target="_blank" rel="noopener noreferrer">
             <Download className="h-4 w-4 mr-2" />
             Download instead
           </a>
@@ -134,10 +135,10 @@ export default function FilePreview({ url, fileName }: FilePreviewProps) {
       <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
       <div className="text-center">
         <p className="font-medium">No preview available</p>
-        <p className="text-sm text-muted-foreground">Supported previews: PPTX, PDF, DOCX, TXT, MD</p>
+        <p className="text-sm text-muted-foreground">Supported previews: PDF, DOCX, TXT, MD</p>
       </div>
       <Button variant="outline" asChild>
-        <a href={url} target="_blank" rel="noopener noreferrer">
+        <a href={downloadUrl || url} target="_blank" rel="noopener noreferrer">
           <Download className="h-4 w-4 mr-2" />
           Download File
         </a>

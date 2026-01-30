@@ -111,12 +111,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     const signedUrl = await getSignedUrl(s3Key);
+    const downloadUrl = await getSignedUrl(s3Key, 3600, fileName);
 
     return NextResponse.json({
       success: true,
       data: {
         ...updatedData,
         signed_url: signedUrl,
+        download_url: downloadUrl,
       },
     });
   } catch (error) {
@@ -152,15 +154,18 @@ export async function GET() {
       (data || []).map(async (note) => {
         try {
           const signedUrl = await getSignedUrl(note.file_link);
+          const downloadUrl = await getSignedUrl(note.file_link, 3600, note.file_name);
           return {
             ...note,
             signed_url: signedUrl,
+            download_url: downloadUrl,
           };
         } catch (urlError) {
           console.error(`Error generating signed URL for ${note.file_link}:`, urlError);
           return {
             ...note,
             signed_url: null,
+            download_url: null,
           };
         }
       })
