@@ -63,6 +63,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import FilePreview from '@/components/MeetingNotes/FilePreview';
 
 interface MeetingNote {
   id: string;
@@ -421,7 +422,7 @@ export default function MinutesOfMeeting() {
                   </label>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Supports PDF, DOC, DOCX, TXT, MD
+                  Supports PPTX, PDF, DOC, DOCX, TXT, MD
                 </p>
               </div>
             </div>
@@ -732,13 +733,18 @@ export default function MinutesOfMeeting() {
                                   <div className="flex flex-col gap-2">
                                     <h3 className="text-sm font-semibold flex items-center gap-2">
                                       <FileText className="h-4 w-4" />
-                                      Raw Extracted Text
+                                      File Preview
                                     </h3>
-                                    <ScrollArea className="h-[400px] w-full rounded-md border p-4 bg-muted/30">
-                                      <pre className="text-xs whitespace-pre-wrap font-sans">
-                                        {note.raw_notes || "No raw text extracted."}
-                                      </pre>
-                                    </ScrollArea>
+                                    {note.signed_url ? (
+                                      <FilePreview
+                                        url={note.signed_url}
+                                        fileName={note.file_name}
+                                      />
+                                    ) : (
+                                      <div className="flex h-[400px] w-full items-center justify-center bg-muted/30 rounded-md border text-muted-foreground">
+                                        Preview not available (Link missing)
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="flex flex-col gap-2">
                                     <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -848,6 +854,6 @@ export default function MinutesOfMeeting() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
