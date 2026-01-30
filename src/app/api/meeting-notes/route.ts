@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
           structured_notes: structuredResult ? JSON.stringify(structuredResult, null, 2) : null,
           tags: tags,
           matched_companies: matched_companies,
+          file_date: structuredResult?.file_date || null,
           processing_status: 'completed'
         })
         .eq('id', initialData.id);
@@ -175,6 +176,49 @@ export async function GET() {
     console.error("Fetch meeting notes error:", error);
     return NextResponse.json(
       { error: (error as Error).message || "Failed to fetch meeting notes" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH - Update a meeting note
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id, ...updates } = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Meeting note ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("minutes_of_meeting")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Database update error:", error);
+      return NextResponse.json(
+        { error: "Failed to update meeting note" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Update meeting note error:", error);
+    return NextResponse.json(
+      { error: (error as Error).message || "Failed to update meeting note" },
       { status: 500 }
     );
   }

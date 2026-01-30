@@ -14,6 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +51,7 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  CalendarIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +73,7 @@ interface MeetingNote {
   tags: string[] | null;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   matched_companies: any[] | null;
+  file_date: string | null;
   created_at: string;
   updated_at: string;
   signed_url: string | null;
@@ -83,7 +93,7 @@ export default function MinutesOfMeeting() {
 
   // Sorting and Filtering state
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<keyof MeetingNote>('created_at');
+  const [sortField, setSortField] = useState<keyof MeetingNote>('file_date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [expandedTags, setExpandedTags] = useState<Record<string, boolean>>({});
   const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
@@ -220,6 +230,34 @@ export default function MinutesOfMeeting() {
 
   const toggleCompanies = (id: string) => {
     setExpandedCompanies(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleUpdateDate = async (id: string, date: Date | undefined) => {
+    if (!date) return;
+
+    const formattedDate = format(date, 'yyyy-MM-dd');
+
+    try {
+      const response = await fetch('/api/meeting-notes', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, file_date: formattedDate }),
+      });
+
+      if (response.ok) {
+        setMeetingNotes(prev => prev.map(note =>
+          note.id === id ? { ...note, file_date: formattedDate } : note
+        ));
+        toast.success('Meeting date updated');
+      } else {
+        toast.error('Failed to update meeting date');
+      }
+    } catch (error) {
+      console.error('Error updating date:', error);
+      toast.error('An error occurred while updating the date');
+    }
   };
 
   const filteredAndSortedNotes = meetingNotes
@@ -446,11 +484,11 @@ export default function MinutesOfMeeting() {
                       <TableHead>Matched Companies</TableHead>
                       <TableHead
                         className="cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => handleSort('created_at')}
+                        onClick={() => handleSort('file_date')}
                       >
                         <div className="flex items-center">
-                          Uploaded
-                          <SortIcon field="created_at" />
+                          Meeting Date
+                          <SortIcon field="file_date" />
                         </div>
                       </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -539,8 +577,31 @@ export default function MinutesOfMeeting() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {new Date(note.created_at).toLocaleDateString()}
+                        <TableCell>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className={cn(
+                                  "h-8 w-full justify-start text-left font-normal px-2",
+                                  !note.file_date && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-3 w-3" />
+                                {note.file_date ? format(new Date(note.file_date), 'PPP') : (
+                                  <span className="text-xs italic text-muted-foreground">Set meeting date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={note.file_date ? new Date(note.file_date) : undefined}
+                                onSelect={(date) => handleUpdateDate(note.id, date)}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
