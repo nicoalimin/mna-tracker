@@ -155,17 +155,32 @@ export default function MinutesOfMeeting() {
       return;
     }
 
+    // Check for duplicates
+    const existingFileNames = new Set(meetingNotes.map(note => note.file_name));
+    const duplicates = selectedFiles.filter(file => existingFileNames.has(file.name));
+    const filesToUpload = selectedFiles.filter(file => !existingFileNames.has(file.name));
+
+    if (filesToUpload.length === 0 && duplicates.length > 0) {
+      toast.warning(
+        duplicates.length === 1
+          ? `File "${duplicates[0].name}" already exists and has been skipped.`
+          : `${duplicates.length} files already exist and have been skipped.`
+      );
+      setSelectedFiles([]);
+      return;
+    }
+
     setUploading(true);
-    setUploadProgress({ current: 0, total: selectedFiles.length });
+    setUploadProgress({ current: 0, total: filesToUpload.length });
 
     const results = {
       success: 0,
       failed: 0,
     };
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      setUploadProgress({ current: i + 1, total: selectedFiles.length });
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const file = filesToUpload[i];
+      setUploadProgress({ current: i + 1, total: filesToUpload.length });
 
       try {
         // 1. Get pre-signed URL
@@ -228,10 +243,15 @@ export default function MinutesOfMeeting() {
 
     if (results.success > 0) {
       toast.success(
-        selectedFiles.length === 1
+        filesToUpload.length === 1
           ? 'Meeting note uploaded successfully'
-          : `Successfully uploaded ${results.success} of ${selectedFiles.length} files`
+          : `Successfully uploaded ${results.success} of ${filesToUpload.length} files`
       );
+
+      if (duplicates.length > 0) {
+        toast.warning(`${duplicates.length} duplicate ${duplicates.length === 1 ? 'file was' : 'files were'} skipped.`);
+      }
+
       if (results.failed > 0) {
         toast.error(`Failed to upload ${results.failed} files`);
       }
@@ -239,7 +259,12 @@ export default function MinutesOfMeeting() {
       setRawNotes('');
       fetchMeetingNotes();
     } else {
-      toast.error('Failed to upload meeting notes');
+      if (duplicates.length > 0) {
+        toast.warning(`${duplicates.length} duplicate ${duplicates.length === 1 ? 'file was' : 'files were'} skipped.`);
+      }
+      if (results.failed > 0) {
+        toast.error('Failed to upload meeting notes');
+      }
     }
 
     setUploading(false);
@@ -462,28 +487,41 @@ export default function MinutesOfMeeting() {
                   </Button>
                 </div>
                 <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-2">
-                  {selectedFiles.map((file, index) => (
-                    <div key={`${file.name}-${index}`} className="flex items-center justify-between p-2 rounded-md bg-muted/40 border">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <FileText className="h-4 w-4 text-primary shrink-0" />
-                        <div className="overflow-hidden">
-                          <p className="text-sm font-medium truncate">{file.name}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {(file.size / 1024).toFixed(1)} KB
-                          </p>
+                  {selectedFiles.map((file, index) => {
+                    const isDuplicate = meetingNotes.some(note => note.file_name === file.name);
+                    return (
+                      <div key={`${file.name}-${index}`} className={cn(
+                        "flex items-center justify-between p-2 rounded-md border transition-colors",
+                        isDuplicate ? "bg-orange-500/5 border-orange-200" : "bg-muted/40 border-muted"
+                      )}>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <FileText className={cn("h-4 w-4 shrink-0", isDuplicate ? "text-orange-500" : "text-primary")} />
+                          <div className="overflow-hidden">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              {isDuplicate && (
+                                <Badge variant="outline" className="text-[10px] h-4 py-0 px-1 text-orange-600 bg-orange-500/5 border-orange-200">
+                                  Duplicate
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              {(file.size / 1024).toFixed(1)} KB
+                            </p>
+                          </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFile(index)}
+                          className="h-7 w-7 shrink-0"
+                          disabled={uploading}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeFile(index)}
-                        className="h-7 w-7 shrink-0"
-                        disabled={uploading}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
