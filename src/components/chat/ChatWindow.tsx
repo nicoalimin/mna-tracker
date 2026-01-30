@@ -194,11 +194,14 @@ export function ChatWindow(props: {
         });
       }
     },
-    onError: (e: Error) =>
+    onError: (e: Error) => {
+      console.error(e);
       toast.error(`Error while processing your request`, {
         description: e.message,
-      }),
+      });
+    }
   } as any);
+  console.log(chat.messages);
 
   async function sendMessage(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

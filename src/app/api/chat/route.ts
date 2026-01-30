@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentGraph, HumanMessage, AIMessage } from "@/lib/agent";
 import { createClient } from "@supabase/supabase-js";
-import { BaseMessage, ChatMessage } from "@langchain/core/messages";
+import { BaseMessage, ChatMessage, SystemMessage } from "@langchain/core/messages";
 
 // Simple interface for Vercel AI SDK Messages as received from client
 interface VercelChatMessage {
@@ -19,6 +19,8 @@ const convertVercelMessageToLangChainMessage = (message: VercelChatMessage) => {
     return new HumanMessage(message.content);
   } else if (message.role === "assistant") {
     return new AIMessage(message.content);
+  } else if (message.role === "system") {
+    return new SystemMessage(message.content);
   } else {
     return new ChatMessage(message.content, message.role);
   }
@@ -115,15 +117,12 @@ export async function POST(req: NextRequest) {
         message.role === "user" || message.role === "assistant",
     );
 
-    // Inject context into the last user message if present
-    if (contextData && rawMessages.length > 0) {
-      const lastMsg = rawMessages[rawMessages.length - 1];
-      if (lastMsg.role === 'user') {
-        lastMsg.content = `${contextData}User query: ${lastMsg.content}`;
-      }
-    }
-
     const messages = rawMessages.map(convertVercelMessageToLangChainMessage);
+
+    // Prepend context as a system message if available
+    if (contextData) {
+      messages.unshift(new SystemMessage(contextData));
+    }
 
     const agent = await getAgentGraph();
     if (!agent) {

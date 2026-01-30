@@ -73,7 +73,7 @@ export default function AIDiscovery() {
             initialMessages={initialMessages}
             emptyStateComponent={
               <div className="flex flex-col items-center justify-center h-full sm:p-8 p-4 text-center mt-12">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
+                {/* <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
                   <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
                   <span>Try:</span>
                   {suggestionChips.map((chip, i) => (
@@ -84,7 +84,7 @@ export default function AIDiscovery() {
                       &quot;{chip}&quot;
                     </span>
                   ))}
-                </div>
+                </div> */}
               </div>
             }
           />
