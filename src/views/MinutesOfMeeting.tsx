@@ -618,15 +618,14 @@ export default function MinutesOfMeeting() {
                       <TableHead>Tags</TableHead>
                       <TableHead>Matched Companies</TableHead>
                       <TableHead
-                        className="cursor-pointer hover:text-primary transition-colors"
+                        className="cursor-pointer hover:text-primary transition-colors text-right"
                         onClick={() => handleSort('file_date')}
                       >
-                        <div className="flex items-center">
-                          Meeting Date
+                        <div className="flex items-center justify-end">
+                          Meeting Date & Actions
                           <SortIcon field="file_date" />
                         </div>
                       </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -712,160 +711,163 @@ export default function MinutesOfMeeting() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className={cn(
-                                  "h-8 w-full justify-start text-left font-normal px-2",
-                                  !note.file_date && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-3 w-3" />
-                                {note.file_date ? format(new Date(note.file_date), 'PPP') : (
-                                  <span className="text-xs italic text-muted-foreground">Set meeting date</span>
-                                )}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={note.file_date ? new Date(note.file_date) : undefined}
-                                onSelect={(date) => handleUpdateDate(note.id, date)}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
+                          <div className="flex flex-col items-end gap-2">
+                            <Popover>
+                              <PopoverTrigger asChild>
                                 <Button
                                   variant="ghost"
-                                  size="icon"
-                                  title="View details"
+                                  className={cn(
+                                    "h-8 w-auto justify-end text-right font-normal px-2",
+                                    !note.file_date && "text-muted-foreground"
+                                  )}
                                 >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-3xl max-h-[80vh]">
-                                <DialogHeader>
-                                  <DialogTitle>{note.file_name} - Details</DialogTitle>
-                                </DialogHeader>
-                                <div className="grid md:grid-cols-2 gap-6 mt-4 overflow-hidden">
-                                  <div className="flex flex-col gap-2">
-                                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                                      <FileText className="h-4 w-4" />
-                                      File Preview
-                                    </h3>
-                                    {note.signed_url ? (
-                                      <FilePreview
-                                        url={note.signed_url}
-                                        onDownload={() => handleDownload(note.id, note.file_name)}
-                                        fileName={note.file_name}
-                                      />
-                                    ) : (
-                                      <div className="flex h-[400px] w-full items-center justify-center bg-muted/30 rounded-md border text-muted-foreground">
-                                        Preview not available (Link missing)
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                                      <Bot className="h-4 w-4" />
-                                      AI Structured Notes
-                                    </h3>
-                                    <ScrollArea className="h-[400px] w-full rounded-md border p-4 bg-muted/30">
-                                      {note.structured_notes ? (
-                                        <div className="space-y-4 text-sm">
-                                          {(() => {
-                                            try {
-                                              const structured = JSON.parse(note.structured_notes);
-                                              return (
-                                                <>
-                                                  <div>
-                                                    <h4 className="font-medium text-primary mb-1">Summary</h4>
-                                                    <p>{structured.summary}</p>
-                                                  </div>
-                                                  <div>
-                                                    <h4 className="font-medium text-primary mb-1">Key Points</h4>
-                                                    <ul className="list-disc pl-4 space-y-1">
-                                                      {structured.key_points?.map((p: string, i: number) => <li key={i}>{p}</li>)}
-                                                    </ul>
-                                                  </div>
-                                                  <div>
-                                                    <h4 className="font-medium text-primary mb-1">Action Items</h4>
-                                                    <ul className="list-disc pl-4 space-y-1">
-                                                      {structured.action_items?.map((p: string, i: number) => <li key={i}>{p}</li>)}
-                                                    </ul>
-                                                  </div>
-                                                </>
-                                              );
-                                            } catch (e) {
-                                              return <pre className="text-xs whitespace-pre-wrap">{note.structured_notes}</pre>;
-                                            }
-                                          })()}
-                                        </div>
-                                      ) : (
-                                        <p className="text-sm text-muted-foreground italic p-4">
-                                          Processing not complete or structure extraction failed.
-                                        </p>
-                                      )}
-                                    </ScrollArea>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDownload(note.id, note.file_name)}
-                              disabled={downloadingId === note.id}
-                              title="Download file"
-                            >
-                              {downloadingId === note.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Download className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={deletingId === note.id}
-                                >
-                                  {deletingId === note.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
+                                  <CalendarIcon className="mr-2 h-3 w-3" />
+                                  {note.file_date ? format(new Date(note.file_date), 'PPP') : (
+                                    <span className="text-xs italic text-muted-foreground">Set meeting date</span>
                                   )}
                                 </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Meeting Note</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete &quot;{note.file_name}&quot;?
-                                    This will remove both the file from storage and the database record.
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(note.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                  mode="single"
+                                  selected={note.file_date ? new Date(note.file_date) : undefined}
+                                  onSelect={(date) => handleUpdateDate(note.id, date)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+
+                            <div className="flex items-center justify-end gap-1">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="View details"
+                                    className="h-8 w-8"
                                   >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl max-h-[80vh]">
+                                  <DialogHeader>
+                                    <DialogTitle>{note.file_name} - Details</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="grid md:grid-cols-2 gap-6 mt-4 overflow-hidden">
+                                    <div className="flex flex-col gap-2">
+                                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        <FileText className="h-4 w-4" />
+                                        File Preview
+                                      </h3>
+                                      {note.signed_url ? (
+                                        <FilePreview
+                                          url={note.signed_url}
+                                          onDownload={() => handleDownload(note.id, note.file_name)}
+                                          fileName={note.file_name}
+                                        />
+                                      ) : (
+                                        <div className="flex h-[400px] w-full items-center justify-center bg-muted/30 rounded-md border text-muted-foreground">
+                                          Preview not available (Link missing)
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        <Bot className="h-4 w-4" />
+                                        AI Structured Notes
+                                      </h3>
+                                      <ScrollArea className="h-[400px] w-full rounded-md border p-4 bg-muted/30">
+                                        {note.structured_notes ? (
+                                          <div className="space-y-4 text-sm">
+                                            {(() => {
+                                              try {
+                                                const structured = JSON.parse(note.structured_notes);
+                                                return (
+                                                  <>
+                                                    <div>
+                                                      <h4 className="font-medium text-primary mb-1">Summary</h4>
+                                                      <p>{structured.summary}</p>
+                                                    </div>
+                                                    <div>
+                                                      <h4 className="font-medium text-primary mb-1">Key Points</h4>
+                                                      <ul className="list-disc pl-4 space-y-1">
+                                                        {structured.key_points?.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                                                      </ul>
+                                                    </div>
+                                                    <div>
+                                                      <h4 className="font-medium text-primary mb-1">Action Items</h4>
+                                                      <ul className="list-disc pl-4 space-y-1">
+                                                        {structured.action_items?.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                                                      </ul>
+                                                    </div>
+                                                  </>
+                                                );
+                                              } catch (e) {
+                                                return <pre className="text-xs whitespace-pre-wrap">{note.structured_notes}</pre>;
+                                              }
+                                            })()}
+                                          </div>
+                                        ) : (
+                                          <p className="text-sm text-muted-foreground italic p-4">
+                                            Processing not complete or structure extraction failed.
+                                          </p>
+                                        )}
+                                      </ScrollArea>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDownload(note.id, note.file_name)}
+                                disabled={downloadingId === note.id}
+                                title="Download file"
+                                className="h-8 w-8"
+                              >
+                                {downloadingId === note.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive h-8 w-8"
+                                    disabled={deletingId === note.id}
+                                  >
+                                    {deletingId === note.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Meeting Note</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete &quot;{note.file_name}&quot;?
+                                      This will remove both the file from storage and the database record.
+                                      This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(note.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
