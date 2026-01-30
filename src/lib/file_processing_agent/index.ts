@@ -20,7 +20,7 @@ ${companies_list}
 
 ## Process:
 1. Review the "Known Companies" list.
-2. Identify which of those companies appear in the text.
+2. Identify which of those companies appear in the text. There are also companie with codenames that may not appear in the Known Companies list, such as Project Utopia and Project Tulia. Also add these as companies detected.
 3. Final Output must be a valid JSON block containing:
    - summary: A concise overview of the meeting/document.
    - key_points: Array of main takeaways.
@@ -108,7 +108,7 @@ export async function processFileContent(rawText: string) {
       }
 
       // Add to final output
-      parsed.matched_companies = finalMatchedCompanies;
+      parsed.matched_companies = parsed.matched_companies.concat(finalMatchedCompanies);
 
       // Also trigger add_company_note logic if notes are present
       // We can do this here or let the API handler deal with it. 
