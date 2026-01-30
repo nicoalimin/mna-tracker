@@ -14,6 +14,7 @@ const generateSystemPrompt = (companies_list) => `You are a specialized M&A File
 3. **Generate Tags**: Create a list of tags including company names mentioned and short highlights.
 4. **Identify Companies**: Identify which of the "Known Companies" provided in the prompt are mentioned in the text.
 5. **Extract Company Notes**: For each identified company, extract specific notes or context.
+6. **Extract Meeting Date**: Identify the date of the meeting/document (usually mentioned in the title or content).
 
 ## Known Companies:
 ${companies_list}
@@ -29,6 +30,7 @@ ${companies_list}
    - tags: Array of useful searchable tags (company names, topics).
    - companies_detected: Array of STRINGS (exact names as they appear in the Known Companies list) that were found in the text.
    - company_notes: Array of objects { "company_name": "...", "note": "..." } containing the specific context for that company.
+   - file_date: A string representing the meeting date in YYYY-MM-DD format. If not found, return null.
 
 ## Output Format:
 Your response should end with a JSON block in this format:
@@ -41,7 +43,8 @@ Your response should end with a JSON block in this format:
   "companies_detected": ["Acme Corp", "Beta Ltd"],
   "company_notes": [
      { "company_name": "Acme Corp", "note": "Target price discussion..." }
-  ]
+  ],
+  "file_date": "2024-01-30"
 }
 \`\`\`
 

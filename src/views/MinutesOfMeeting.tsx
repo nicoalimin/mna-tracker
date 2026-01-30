@@ -39,6 +39,10 @@ import {
   Building,
   Eye,
   Bot,
+  Search,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +80,13 @@ export default function MinutesOfMeeting() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [rawNotes, setRawNotes] = useState('');
   const [structuredNotes, setStructuredNotes] = useState('');
+
+  // Sorting and Filtering state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<keyof MeetingNote>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [expandedTags, setExpandedTags] = useState<Record<string, boolean>>({});
+  const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
 
   const fetchMeetingNotes = useCallback(async () => {
     try {
@@ -192,6 +203,60 @@ export default function MinutesOfMeeting() {
     setSelectedFile(null);
     setRawNotes('');
     setStructuredNotes('');
+  };
+
+  const handleSort = (field: keyof MeetingNote) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const toggleTags = (id: string) => {
+    setExpandedTags(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleCompanies = (id: string) => {
+    setExpandedCompanies(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const filteredAndSortedNotes = meetingNotes
+    .filter((note) => {
+      const searchLower = searchQuery.toLowerCase();
+      const fileNameMatch = note.file_name.toLowerCase().includes(searchLower);
+      const tagsMatch = note.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+      const companiesMatch = note.matched_companies?.some(company =>
+        company.name.toLowerCase().includes(searchLower)
+      );
+      return fileNameMatch || tagsMatch || companiesMatch;
+    })
+    .sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+
+      if (aValue === bValue) return 0;
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else if (Array.isArray(aValue) && Array.isArray(bValue)) {
+        comparison = aValue.length - bValue.length;
+      } else {
+        comparison = aValue < bValue ? -1 : 1;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+  const SortIcon = ({ field }: { field: keyof MeetingNote }) => {
+    if (sortField !== field) return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    return sortDirection === 'asc' ?
+      <ChevronUp className="h-3 w-3 ml-1 text-primary" /> :
+      <ChevronDown className="h-3 w-3 ml-1 text-primary" />;
   };
 
   if (loading) {
@@ -325,10 +390,21 @@ export default function MinutesOfMeeting() {
         {/* Meeting Notes List */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Meeting Notes ({meetingNotes.length})
-            </CardTitle>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Meeting Notes ({filteredAndSortedNotes.length})
+              </CardTitle>
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search notes, tags, companies..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {meetingNotes.length === 0 ? (
@@ -337,21 +413,51 @@ export default function MinutesOfMeeting() {
                 <p>No meeting notes uploaded yet.</p>
                 <p className="text-sm">Upload your first meeting note using the form above.</p>
               </div>
+            ) : filteredAndSortedNotes.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p>No results found for &quot;{searchQuery}&quot;</p>
+                <Button variant="link" onClick={() => setSearchQuery('')}>Clear search</Button>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>File Name</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => handleSort('file_name')}
+                      >
+                        <div className="flex items-center">
+                          File Name
+                          <SortIcon field="file_name" />
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => handleSort('processing_status')}
+                      >
+                        <div className="flex items-center">
+                          Status
+                          <SortIcon field="processing_status" />
+                        </div>
+                      </TableHead>
                       <TableHead>Tags</TableHead>
                       <TableHead>Matched Companies</TableHead>
-                      <TableHead>Uploaded</TableHead>
+                      <TableHead
+                        className="cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => handleSort('created_at')}
+                      >
+                        <div className="flex items-center">
+                          Uploaded
+                          <SortIcon field="created_at" />
+                        </div>
+                      </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {meetingNotes.map((note) => (
+                    {filteredAndSortedNotes.map((note) => (
                       <TableRow key={note.id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
@@ -384,37 +490,52 @@ export default function MinutesOfMeeting() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="max-w-[150px]">
+                        <TableCell className="max-w-[200px]">
                           <div className="flex flex-wrap gap-1">
                             {note.tags && note.tags.length > 0 ? (
-                              note.tags.slice(0, 3).map((tag, i) => (
-                                <Badge key={i} variant="secondary" className="text-[10px] py-0 px-1.5 flex items-center gap-1">
-                                  <Tag className="h-2.5 w-2.5" />
-                                  {tag}
-                                </Badge>
-                              ))
+                              <>
+                                {(expandedTags[note.id] ? note.tags : note.tags.slice(0, 3)).map((tag, i) => (
+                                  <Badge key={i} variant="secondary" className="text-[10px] py-0 px-1.5 flex items-center gap-1">
+                                    <Tag className="h-2.5 w-2.5" />
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {note.tags.length > 3 && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] py-0 px-1.5 cursor-pointer hover:bg-muted"
+                                    onClick={() => toggleTags(note.id)}
+                                  >
+                                    {expandedTags[note.id] ? 'Show less' : `+${note.tags.length - 3} more`}
+                                  </Badge>
+                                )}
+                              </>
                             ) : (
                               <span className="text-muted-foreground text-xs">-</span>
-                            )}
-                            {note.tags && note.tags.length > 3 && (
-                              <span className="text-[10px] text-muted-foreground">+{note.tags.length - 3}</span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             {note.matched_companies && note.matched_companies.length > 0 ? (
-                              note.matched_companies.slice(0, 2).map((company, i) => (
-                                <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Building className="h-3 w-3" />
-                                  <span className="truncate max-w-[100px]">{company.name}</span>
-                                </div>
-                              ))
+                              <>
+                                {(expandedCompanies[note.id] ? note.matched_companies : note.matched_companies.slice(0, 2)).map((company, i) => (
+                                  <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Building className="h-3 w-3" />
+                                    <span className="truncate max-w-[150px]">{company.name}</span>
+                                  </div>
+                                ))}
+                                {note.matched_companies.length > 2 && (
+                                  <button
+                                    className="text-[10px] text-primary hover:underline text-left"
+                                    onClick={() => toggleCompanies(note.id)}
+                                  >
+                                    {expandedCompanies[note.id] ? 'Show less' : `+${note.matched_companies.length - 2} more`}
+                                  </button>
+                                )}
+                              </>
                             ) : (
                               <span className="text-muted-foreground text-xs">-</span>
-                            )}
-                            {note.matched_companies && note.matched_companies.length > 2 && (
-                              <span className="text-[10px] text-muted-foreground">+{note.matched_companies.length - 2} more</span>
                             )}
                           </div>
                         </TableCell>
