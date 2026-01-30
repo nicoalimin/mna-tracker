@@ -77,66 +77,71 @@ async function fetchContextData(): Promise<string> {
   }
 }
 
+import { anthropic } from '@ai-sdk/anthropic';
+import { streamText, convertToCoreMessages } from "ai";
+import { tools } from "@/lib/agent/tools-v6";
+
+const SYSTEM_PROMPT = `You are an intelligent M&A Data Analysis Assistant that helps users explore and analyze company/asset data for mergers and acquisitions.
+
+## How to Help Users
+
+1. **For browsing companies:** Use query_companies with appropriate filters
+2. **For statistics:** Use get_company_stats to get summaries and breakdowns
+3. **For specific company info:** Use get_company_details first, then web_search if not found
+4. **For meeting records:** Use query_meeting_notes to find what was discussed about a company or topic
+5. **For market context:** Use web_search for benchmarks and comparisons
+
+## CRITICAL: Automatic Web Search Fallback
+
+**ALWAYS use Inven as a data source first before going to web_search**
+**ALWAYS use web_search as a fallback when database queries don't return sufficient information:**
+
+1. **Company not found:** If get_company_details or query_companies returns no results or "not found", IMMEDIATELY use web_search to find the company's information
+2. **Missing data fields:** If a company is found but key fields like revenue, EBITDA, or valuation are missing/null, use web_search to find that specific data
+3. **Incomplete profiles:** If the user asks about a company and the database has limited info, supplement with web_search
+4. **Unknown companies:** If the user mentions a company name that doesn't exist in the database, search for it on the web
+
+## Response Guidelines
+
+- Always explain what you found in plain language
+- Provide insights and observations about the data
+- When combining database data with web search results, clearly distinguish between internal data and external market data
+- **NEVER say "company not found" or "no data available" without first trying web_search**
+- Be concise but thorough in your analysis
+- Format financial numbers clearly (use $M for millions, $B for billions)
+
+## Important Notes
+
+- Key columns include: target (company name), segment, geography, revenue, EBITDA, EV, margins
+- Financial values are in USD millions
+- ALWAYS check meeting notes (query_meeting_notes) when a user mentions a specific company name, project name, or deal context.
+- **ALWAYS check meeting notes** (query_meeting_notes) when a user asks about discussion history, specific deal context, or what we know about a company's internal strategy or previous meetings.`;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { message, sessionId = "default" } = body;
+    const { messages } = await request.json();
 
-    if (!message || typeof message !== "string") {
+    if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
-        { error: "Message is required and must be a string" },
+        { error: "Messages array is required" },
         { status: 400 }
       );
     }
 
-    // Get or initialize conversation history
-    let history = conversationHistory.get(sessionId) || [];
-
-    // Fetch thesis and criteria context
     const contextData = await fetchContextData();
+    const systemInstruction = contextData
+      ? `${SYSTEM_PROMPT}\n\n${contextData}`
+      : SYSTEM_PROMPT;
 
-    // Create user message with context (only for first message or when context is relevant)
-    let messageWithContext = message;
-    if (history.length === 0 && contextData) {
-      // Inject context at the start of the conversation
-      messageWithContext = `${contextData}User query: ${message}`;
-    }
-
-    const currentUserMessage = new HumanMessage(messageWithContext);
-
-    // Get the agent
-    const agent = getAgentGraph();
-    if (!agent) {
-      return NextResponse.json(
-        {
-          error: "Agent not available. Please ensure ANTHROPIC_API_KEY is set.",
-        },
-        { status: 500 }
-      );
-    }
-
-    // Combine history with current message (limit to last MAX_HISTORY)
-    const messagesToSend = [...history.slice(-MAX_HISTORY), currentUserMessage];
-
-    // Invoke the agent
-    const result = await agent.invoke({ messages: messagesToSend });
-    const agentResponse = result.messages[0] || "No response from agent.";
-
-    // Update conversation history (store original message without context for cleaner history)
-    history.push(new HumanMessage(message));
-    history.push(new AIMessage(agentResponse));
-
-    // Trim history if too long
-    if (history.length > MAX_HISTORY * 2) {
-      history = history.slice(-MAX_HISTORY * 2);
-    }
-
-    conversationHistory.set(sessionId, history);
-
-    return NextResponse.json({
-      response: agentResponse,
-      sessionId,
+    const result = streamText({
+      model: anthropic('claude-3-5-sonnet-latest'),
+      system: systemInstruction,
+      messages: convertToCoreMessages(messages),
+      tools,
+      maxSteps: 5,
     });
+
+    return result.toDataStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(

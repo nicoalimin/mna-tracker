@@ -29,10 +29,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
 
-interface Message {
-  id: string;
-  role: 'assistant' | 'user';
-  content: string;
+import { Message } from 'ai';
+import { useChat } from '@ai-sdk/react';
+import { ThoughtPanel, ThoughtStep } from '@/components/chat/ThoughtPanel';
+
+// Define our local message type that extends SDK Message
+interface AppMessage extends Message {
   companies?: CompanyResult[];
 }
 
@@ -112,32 +114,10 @@ const resetSessionId = () => {
   sessionStorage.setItem('chat-session-id', newSessionId);
 };
 
-// Call the AI agent API
-const callAgentAPI = async (message: string): Promise<string> => {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message,
-      sessionId: getSessionId(),
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to get response from AI agent');
-  }
-
-  const data = await response.json();
-  return data.response;
-};
-
 const initialMessage: Message = {
   id: '1',
   role: 'assistant',
-  content: `# Welcome to M&A AI Discovery
+  text: `# Welcome to M&A AI Discovery
 
 I'm your intelligent M&A assistant powered by AI. I can help you explore and analyze company data from your database.
 
@@ -168,34 +148,49 @@ const suggestionChips = [
 
 export default function AIDiscovery() {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([initialMessage]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [addedCompanies, setAddedCompanies] = useState<Set<string>>(new Set());
-  const [isInitialized, setIsInitialized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load chat history from localStorage on mount
-  useEffect(() => {
-    const savedHistory = loadChatHistory();
-    if (savedHistory && savedHistory.length > 0) {
-      setMessages(savedHistory);
-    }
-    setIsInitialized(true);
-  }, []);
+  const [input, setInput] = useState('');
+  const { messages, sendMessage, status, setMessages, data } = useChat({
+    api: '/api/chat',
+    body: {
+      sessionId: getSessionId(),
+    },
+    initialMessages: loadChatHistory() || [initialMessage],
+  });
 
-  // Save chat history to localStorage whenever messages change (only after initialization)
+  const isLoading = status === 'streaming' || status === 'submitting';
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const content = input;
+    setInput('');
+    await sendMessage({
+      id: Date.now().toString(),
+      role: 'user',
+      text: content,
+    });
+  };
+
+  // Persist messages to localStorage
   useEffect(() => {
-    if (isInitialized) {
-      saveChatHistory(messages);
+    if (messages.length > 0) {
+      saveChatHistory(messages as Message[]);
     }
-  }, [messages, isInitialized]);
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isLoading, data]);
 
   // Clear chat history handler
   const handleClearHistory = useCallback(() => {
@@ -203,52 +198,14 @@ export default function AIDiscovery() {
     resetSessionId(); // Reset session ID so API starts fresh conversation
     setMessages([initialMessage]);
     setInput('');
-    setIsTyping(false);
     toast.success('Chat history cleared');
-  }, []);
-
-  const handleSend = async () => {
-    if (!input.trim()) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
-    setInput('');
-    setIsTyping(true);
-
-    try {
-      // Call the AI agent API
-      const response = await callAgentAPI(currentInput);
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error('Error getting response:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Sorry, there was an error processing your request: ${(error as Error).message}. Please try again.`,
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
+  }, [setMessages, setInput]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      const form = e.currentTarget.closest('form');
+      if (form) form.requestSubmit();
     }
   };
 
@@ -272,6 +229,19 @@ export default function AIDiscovery() {
       console.error('Error adding to watchlist:', error);
       toast.error('Failed to add company to watchlist');
     }
+  };
+
+  // Convert Message toolInvocations to ThoughtSteps
+  const getThoughtSteps = (message: Message): ThoughtStep[] => {
+    if (!message.toolInvocations) return [];
+
+    return message.toolInvocations.map((inv) => ({
+      type: inv.state === 'call' ? 'tool_start' : 'tool_end',
+      tool: inv.toolName,
+      input: inv.args,
+      output: inv.state === 'result' ? inv.result : undefined,
+      timestamp: Date.now(),
+    }));
   };
 
   return (
@@ -305,7 +275,7 @@ export default function AIDiscovery() {
         <Card className="flex-1 flex flex-col overflow-hidden bg-muted/30 min-h-0">
           <ScrollArea className="flex-1 p-6" ref={scrollRef}>
             <div className="space-y-6 max-w-5xl mx-auto">
-              {messages.map((message) => (
+              {messages.map((message, idx) => (
                 <div
                   key={message.id}
                   className={cn(
@@ -338,15 +308,20 @@ export default function AIDiscovery() {
                         : "bg-primary text-primary-foreground ml-auto max-w-[70%]"
                     )}
                   >
+                    {/* Show thoughts for assistant messages */}
+                    {message.role === 'assistant' && (
+                      <ThoughtPanel steps={getThoughtSteps(message)} />
+                    )}
+
                     <MarkdownRenderer
-                      content={message.content}
+                      content={message.text || message.content || ''}
                       className={cn(
                         message.role === 'user' && "prose-invert [&_*]:text-primary-foreground"
                       )}
                     />
 
-                    {/* Company Table Results */}
-                    {message.companies && message.companies.length > 0 && (
+                    {/* Company Table Results (Legacy support) */}
+                    {(message as AppMessage).companies && (message as AppMessage).companies!.length > 0 && (
                       <div className="mt-4 overflow-x-auto">
                         <Table>
                           <TableHeader>
@@ -362,7 +337,7 @@ export default function AIDiscovery() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {message.companies.map((company) => {
+                            {(message as AppMessage).companies!.map((company) => {
                               const isAdded = addedCompanies.has(company.id);
                               return (
                                 <TableRow key={company.id}>
@@ -402,17 +377,19 @@ export default function AIDiscovery() {
                 </div>
               ))}
 
-              {/* Typing Indicator */}
-              {isTyping && (
+              {/* End of results indicator (legacy) */}
+              {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
                 <div className="flex gap-4">
                   <div className="flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-purple-600">
                     <Bot className="h-5 w-5 text-white" />
                   </div>
                   <div className="bg-card border shadow-sm rounded-2xl px-5 py-4">
-                    <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.3s]" />
-                      <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
-                      <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.3s]" />
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:-0.15s]" />
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -422,19 +399,18 @@ export default function AIDiscovery() {
 
           {/* Input Area */}
           <div className="border-t bg-card p-4 flex-shrink-0">
-            <div className="max-w-5xl mx-auto space-y-3">
+            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-3">
               <div className="flex gap-2">
                 <Input
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onChange={handleInputChange}
                   placeholder="Ask about companies, analysis, comparisons, or pipeline performance..."
                   className="flex-1"
-                  disabled={isTyping}
+                  disabled={isLoading}
                 />
                 <Button
-                  onClick={handleSend}
-                  disabled={!input.trim() || isTyping}
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
                   className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
                 >
                   <Send className="h-4 w-4" />
@@ -446,6 +422,7 @@ export default function AIDiscovery() {
                 {suggestionChips.map((chip, i) => (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => handleChipClick(chip)}
                     className="text-primary hover:underline"
                   >
@@ -453,7 +430,7 @@ export default function AIDiscovery() {
                   </button>
                 ))}
               </div>
-            </div>
+            </form>
           </div>
         </Card>
       </div>

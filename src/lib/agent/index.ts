@@ -159,6 +159,24 @@ export class AgentGraph {
   async ainvoke(inputs: { messages: BaseMessage[] }): Promise<InvokeResult> {
     return this.invoke(inputs);
   }
+
+  /**
+   * Stream events from the agent graph.
+   */
+  async *streamEvents(inputs: { messages: BaseMessage[] }) {
+    logger.debug("=".repeat(60));
+    logger.debug("🚀 AGENT STREAMING STARTED");
+
+    try {
+      yield* this.agent.streamEvents(inputs, {
+        version: "v2",
+      });
+      logger.debug("✅ AGENT STREAMING COMPLETED");
+    } catch (error) {
+      logger.error(`✗ AGENT STREAMING FAILED: ${(error as Error).message}`);
+      throw error;
+    }
+  }
 }
 
 // Create agent instance on demand
