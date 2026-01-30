@@ -158,7 +158,6 @@ function shouldContinue(state: typeof MessagesState.State) {
   }
   return END;
 }
-
 /**
  * Create the LangGraph agent.
  */
@@ -185,10 +184,12 @@ export async function createAgentLocal(config: AgentConfig) {
 /**
  * Agent wrapper class for compatibility.
  */
-export class AgentGraph {
-  private agent: any;
+type Agent = Awaited<ReturnType<typeof createAgentLocal>>;
 
-  constructor(agent: any) {
+export class AgentGraph {
+  private agent: Agent;
+
+  constructor(agent: Agent) {
     this.agent = agent;
   }
 
