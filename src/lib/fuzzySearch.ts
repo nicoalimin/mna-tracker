@@ -93,5 +93,54 @@ export async function findBestCompanyMatch(
     return bestMatch;
   }
 
+
   return null;
+}
+
+/**
+ * Fetches all company targets and past acquisition project names from the database.
+ * Usage: Inject this list into the LLM context so it knows what companies exist.
+ */
+export async function getAllCompanyReferences(): Promise<MatchResult[]> {
+  const supabase = getSupabaseClient();
+
+  // 1. Fetch all candidate names from companies
+  const { data: companies } = await supabase
+    .from('companies')
+    .select('id, target');
+
+  // 2. Fetch all candidate names from past_acquisitions
+  const { data: pastDeals } = await supabase
+    .from('past_acquisitions')
+    .select('id, project_name');
+
+  const matches: MatchResult[] = [];
+
+  // Add companies
+  if (companies) {
+    for (const company of companies) {
+      if (!company.target) continue;
+      matches.push({
+        id: company.id,
+        name: company.target,
+        type: 'company',
+        similarity: 1
+      });
+    }
+  }
+
+  // Add past deals
+  if (pastDeals) {
+    for (const deal of pastDeals) {
+      if (!deal.project_name) continue;
+      matches.push({
+        id: deal.id,
+        name: deal.project_name,
+        type: 'past_acquisition',
+        similarity: 1
+      });
+    }
+  }
+
+  return matches;
 }
