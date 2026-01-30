@@ -14,7 +14,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Upload, FileSpreadsheet, Loader2, Trash2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface CompanyFormData {
   name: string;
@@ -111,9 +111,32 @@ export default function L0AddCompany({ onSuccess }: L0AddCompanyProps) {
     setIsImporting(true);
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data as any);
+      const worksheet = workbook.worksheets[0];
+
+      const jsonData: any[] = [];
+      let headers: string[] = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        const rowValues = row.values as any[];
+        // row.values is 1-based [empty, val1, val2, ...]
+        if (rowNumber === 1) {
+          headers = rowValues.slice(1).map(v => v?.toString() || "");
+        } else {
+          const rowData: any = {};
+          headers.forEach((header, idx) => {
+            // idx matches result of slice(1)
+            // value matches slice(1)[idx]
+            // actually safe way:
+            const val = rowValues[idx + 1];
+            if (header) {
+              rowData[header] = val;
+            }
+          });
+          jsonData.push(rowData);
+        }
+      });
 
       const companies: CompanyFormData[] = jsonData.map((row: any) => ({
         name: row['Company Name'] || row['name'] || '',

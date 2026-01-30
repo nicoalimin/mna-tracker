@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { uploadFile, getSignedUrl, generateMeetingNoteKey } from "@/lib/s3";
-import { extractPptxText } from "@/lib/pptxExtractor";
+import { extractTextFromFile } from "@/lib/fileExtractor";
 import { processFileContent } from "@/lib/file_processing_agent";
 
 // Create a server-side Supabase client
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
     let matched_companies: any[] = [];
 
     try {
-      // 1. Extract raw text if it's a PPTX or other supported format
-      rawText = await extractPptxText(buffer);
+      // 1. Extract raw text from supported formats
+      rawText = await extractTextFromFile(buffer, file.type || "application/octet-stream", file.name);
 
       // 2. Invoke the agent to structure the text
       structuredResult = await processFileContent(rawText);
