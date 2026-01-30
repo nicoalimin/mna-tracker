@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the agent
-    const agent = getAgentGraph();
+    const agent = await getAgentGraph();
     if (!agent) {
       return NextResponse.json(
         { error: "Agent not available. Please ensure ANTHROPIC_API_KEY is set." },
@@ -198,7 +198,7 @@ function buildCompanyContext(company: CompanyData): string {
 
 // Health check endpoint
 export async function GET() {
-  const agent = getAgentGraph();
+  const agent = await getAgentGraph();
   return NextResponse.json({
     status: agent ? "ready" : "not_configured",
     message: agent ? "AI Screening endpoint is ready" : "Agent not available. Check ANTHROPIC_API_KEY.",

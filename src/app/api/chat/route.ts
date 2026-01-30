@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const currentUserMessage = new HumanMessage(messageWithContext);
 
     // Get the agent
-    const agent = getAgentGraph();
+    const agent = await getAgentGraph();
     if (!agent) {
       return NextResponse.json(
         {

@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the agent
-    const agent = getAgentGraph();
+    const agent = await getAgentGraph();
     if (!agent) {
       return NextResponse.json(
         { error: 'Agent not available. Please ensure ANTHROPIC_API_KEY is set.' },
@@ -259,8 +259,20 @@ Find ${sourcesCount} companies. Return ONLY the JSON object, no other text. Use 
       companies: filteredCompanies.map(c => c.company_name)
     });
 
+
   } catch (error: any) {
     console.error('Market screening error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
+}
+
+// Optional: Add GET endpoint to check agent status
+export async function GET() {
+  const agent = await getAgentGraph();
+  return NextResponse.json({
+    status: agent ? "ok" : "not_configured",
+    message: agent
+      ? "Agent is ready"
+      : "Agent not available. Check ANTHROPIC_API_KEY.",
+  });
 }
