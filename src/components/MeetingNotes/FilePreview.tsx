@@ -10,15 +10,16 @@ import { Button } from '@/components/ui/button';
 
 interface FilePreviewProps {
   url: string;
-  downloadUrl?: string;
+  onDownload?: () => Promise<void>;
   fileName: string;
 }
 
-export default function FilePreview({ url, downloadUrl, fileName }: FilePreviewProps) {
+export default function FilePreview({ url, onDownload, fileName }: FilePreviewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string>('');
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const detectFileType = () => {
@@ -75,11 +76,18 @@ export default function FilePreview({ url, downloadUrl, fileName }: FilePreviewP
       <div className="flex flex-col h-[400px] w-full items-center justify-center bg-muted/30 rounded-md border text-destructive gap-2">
         <AlertCircle className="h-8 w-8" />
         <p>{error}</p>
-        <Button variant="outline" size="sm" asChild>
-          <a href={downloadUrl || url} target="_blank" rel="noopener noreferrer">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onDownload}
+          disabled={!onDownload || downloading}
+        >
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
             <Download className="h-4 w-4 mr-2" />
-            Download instead
-          </a>
+          )}
+          Download instead
         </Button>
       </div>
     );
@@ -137,11 +145,17 @@ export default function FilePreview({ url, downloadUrl, fileName }: FilePreviewP
         <p className="font-medium">No preview available</p>
         <p className="text-sm text-muted-foreground">Supported previews: PDF, DOCX, TXT, MD</p>
       </div>
-      <Button variant="outline" asChild>
-        <a href={downloadUrl || url} target="_blank" rel="noopener noreferrer">
+      <Button
+        variant="outline"
+        onClick={onDownload}
+        disabled={!onDownload || downloading}
+      >
+        {downloading ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : (
           <Download className="h-4 w-4 mr-2" />
-          Download File
-        </a>
+        )}
+        Download File
       </Button>
     </div>
   );

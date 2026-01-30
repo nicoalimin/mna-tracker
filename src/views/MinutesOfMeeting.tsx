@@ -74,7 +74,6 @@ interface MeetingNote {
   tags: string[];
   matched_companies: any[];
   signed_url?: string;
-  download_url?: string;
   file_date: string | null;
   created_at: string;
   updated_at: string;
@@ -99,6 +98,7 @@ export default function MinutesOfMeeting() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [expandedTags, setExpandedTags] = useState<Record<string, boolean>>({});
   const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const fetchMeetingNotes = useCallback(async () => {
     try {
@@ -237,7 +237,6 @@ export default function MinutesOfMeeting() {
       }
       setSelectedFiles([]);
       setRawNotes('');
-      setStructuredNotes('');
       fetchMeetingNotes();
     } else {
       toast.error('Failed to upload meeting notes');
@@ -301,28 +300,54 @@ export default function MinutesOfMeeting() {
   const handleUpdateDate = async (id: string, date: Date | undefined) => {
     if (!date) return;
 
-    const formattedDate = format(date, 'yyyy-MM-dd');
-
     try {
       const response = await fetch('/api/meeting-notes', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, file_date: formattedDate }),
+        body: JSON.stringify({
+          id,
+          file_date: format(date, 'yyyy-MM-dd'),
+        }),
       });
 
-      if (response.ok) {
-        setMeetingNotes(prev => prev.map(note =>
-          note.id === id ? { ...note, file_date: formattedDate } : note
-        ));
-        toast.success('Meeting date updated');
-      } else {
-        toast.error('Failed to update meeting date');
-      }
+      if (!response.ok) throw new Error('Failed to update date');
+
+      setMeetingNotes(prev =>
+        prev.map(note =>
+          note.id === id ? { ...note, file_date: format(date, 'yyyy-MM-dd') } : note
+        )
+      );
+
+      toast.success("Meeting date updated successfully");
     } catch (error) {
-      console.error('Error updating date:', error);
-      toast.error('An error occurred while updating the date');
+      console.error('Error updating meeting date:', error);
+      toast.error("Failed to update meeting date");
+    }
+  };
+
+  const handleDownload = async (noteId: string, fileName: string) => {
+    setDownloadingId(noteId);
+    try {
+      const response = await fetch(`/api/meeting-notes/${noteId}/download`);
+      if (!response.ok) throw new Error('Failed to generate download URL');
+
+      const { download_url } = await response.json();
+      if (!download_url) throw new Error('Download URL not provided');
+
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = download_url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error("Failed to download file. Please try again.");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -738,7 +763,7 @@ export default function MinutesOfMeeting() {
                                     {note.signed_url ? (
                                       <FilePreview
                                         url={note.signed_url}
-                                        downloadUrl={note.download_url}
+                                        onDownload={() => handleDownload(note.id, note.file_name)}
                                         fileName={note.file_name}
                                       />
                                     ) : (
@@ -793,22 +818,19 @@ export default function MinutesOfMeeting() {
                                 </div>
                               </DialogContent>
                             </Dialog>
-                            {(note.download_url || note.signed_url) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                asChild
-                              >
-                                <a
-                                  href={note.download_url || note.signed_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Download file"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDownload(note.id, note.file_name)}
+                              disabled={downloadingId === note.id}
+                              title="Download file"
+                            >
+                              {downloadingId === note.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                            </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
