@@ -87,9 +87,10 @@ export default function MinutesOfMeeting() {
 
   // File drop state
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [rawNotes, setRawNotes] = useState('');
   const [structuredNotes, setStructuredNotes] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Sorting and Filtering state
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,55 +135,85 @@ export default function MinutesOfMeeting() {
     e.preventDefault();
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
+    const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      setSelectedFile(files[0]);
+      setSelectedFiles(prev => [...prev, ...files]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setSelectedFile(files[0]);
+      setSelectedFiles(prev => [...prev, ...Array.from(files)]);
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file first');
+    if (selectedFiles.length === 0) {
+      toast.error('Please select at least one file first');
       return;
     }
 
     setUploading(true);
+    setUploadProgress({ current: 0, total: selectedFiles.length });
 
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      if (rawNotes) formData.append('raw_notes', rawNotes);
-      if (structuredNotes) formData.append('structured_notes', structuredNotes);
+    const results = {
+      success: 0,
+      failed: 0,
+    };
 
-      const response = await fetch('/api/meeting-notes', {
-        method: 'POST',
-        body: formData,
-      });
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      setUploadProgress({ current: i + 1, total: selectedFiles.length });
 
-      const result = await response.json();
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      if (result.success) {
-        toast.success('Meeting note uploaded successfully');
-        setSelectedFile(null);
-        setRawNotes('');
-        setStructuredNotes('');
-        fetchMeetingNotes();
-      } else {
-        toast.error(result.error || 'Failed to upload meeting note');
+        // Only append manual notes if uploading a single file
+        if (selectedFiles.length === 1) {
+          if (rawNotes) formData.append('raw_notes', rawNotes);
+          if (structuredNotes) formData.append('structured_notes', structuredNotes);
+        }
+
+        const response = await fetch('/api/meeting-notes', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          results.success++;
+        } else {
+          console.error(`Upload failed for ${file.name}:`, result.error);
+          results.failed++;
+        }
+      } catch (error) {
+        console.error(`Upload error for ${file.name}:`, error);
+        results.failed++;
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload meeting note');
-    } finally {
-      setUploading(false);
     }
+
+    if (results.success > 0) {
+      toast.success(
+        selectedFiles.length === 1
+          ? 'Meeting note uploaded successfully'
+          : `Successfully uploaded ${results.success} of ${selectedFiles.length} files`
+      );
+      if (results.failed > 0) {
+        toast.error(`Failed to upload ${results.failed} files`);
+      }
+      setSelectedFiles([]);
+      setRawNotes('');
+      setStructuredNotes('');
+      fetchMeetingNotes();
+    } else {
+      toast.error('Failed to upload meeting notes');
+    }
+
+    setUploading(false);
+    setUploadProgress(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -209,8 +240,12 @@ export default function MinutesOfMeeting() {
     }
   };
 
-  const clearSelectedFile = () => {
-    setSelectedFile(null);
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearSelectedFiles = () => {
+    setSelectedFiles([]);
     setRawNotes('');
     setStructuredNotes('');
   };
@@ -337,52 +372,69 @@ export default function MinutesOfMeeting() {
                 ${isDragging
                   ? 'border-primary bg-primary/5'
                   : 'border-muted-foreground/25 hover:border-primary/50'}
-                ${selectedFile ? 'bg-muted/50' : ''}
+                ${selectedFiles.length > 0 ? 'bg-muted/50' : ''}
               `}
             >
-              {selectedFile ? (
-                <div className="flex items-center justify-center gap-4">
-                  <FileText className="h-10 w-10 text-primary" />
-                  <div className="text-left">
-                    <p className="font-medium">{selectedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(selectedFile.size / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={clearSelectedFile}
-                    className="ml-2"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <FileUp className="h-10 w-10 mx-auto text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    Drag and drop your file here, or{' '}
-                    <label className="text-primary cursor-pointer hover:underline">
-                      browse
-                      <Input
-                        type="file"
-                        className="hidden"
-                        onChange={handleFileSelect}
-                        accept=".pdf,.doc,.docx,.txt,.md"
-                      />
-                    </label>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Supports PDF, DOC, DOCX, TXT, MD
-                  </p>
-                </div>
-              )}
+              <div className="space-y-2">
+                <FileUp className="h-10 w-10 mx-auto text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  Drag and drop files here, or{' '}
+                  <label className="text-primary cursor-pointer hover:underline">
+                    browse
+                    <Input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx,.txt,.md"
+                      multiple
+                    />
+                  </label>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Supports PDF, DOC, DOCX, TXT, MD
+                </p>
+              </div>
             </div>
 
-            {/* Notes Fields */}
-            {selectedFile && (
-              <div className="grid md:grid-cols-2 gap-4">
+            {/* Selected Files List */}
+            {selectedFiles.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">Selected Files ({selectedFiles.length})</h3>
+                  <Button variant="ghost" size="sm" onClick={clearSelectedFiles} className="text-xs h-7">
+                    Clear all
+                  </Button>
+                </div>
+                <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-2">
+                  {selectedFiles.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className="flex items-center justify-between p-2 rounded-md bg-muted/40 border">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-medium truncate">{file.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFile(index)}
+                        className="h-7 w-7 shrink-0"
+                        disabled={uploading}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Notes Fields (Only for single file) */}
+            {selectedFiles.length === 1 && (
+              <div className="grid md:grid-cols-2 gap-4 pt-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Raw Notes (Optional)</label>
                   <Textarea
@@ -404,22 +456,49 @@ export default function MinutesOfMeeting() {
               </div>
             )}
 
-            {/* Upload Button */}
-            {selectedFile && (
-              <div className="flex justify-end">
-                <Button onClick={handleUpload} disabled={uploading}>
-                  {uploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Meeting Note
-                    </>
-                  )}
-                </Button>
+            {/* Upload Button & Progress */}
+            {selectedFiles.length > 0 && (
+              <div className="flex flex-col gap-4 pt-2">
+                {uploading && uploadProgress && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        Processing {uploadProgress.current} of {uploadProgress.total}...
+                      </span>
+                      <span className="font-medium">
+                        {Math.round((uploadProgress.current / uploadProgress.total) * 100)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <Button onClick={handleUpload} disabled={uploading}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {selectedFiles.length > 1
+                          ? `Uploading Queue (${uploadProgress?.current}/${uploadProgress?.total})`
+                          : 'Uploading...'
+                        }
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        {selectedFiles.length > 1
+                          ? `Upload ${selectedFiles.length} Meeting Notes`
+                          : 'Upload Meeting Note'
+                        }
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
