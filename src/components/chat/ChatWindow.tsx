@@ -10,7 +10,7 @@ import { ArrowDown, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChatMessageBubble } from "./ChatMessageBubble";
+import { ChatMessageBubble, LoadingBubble } from "./ChatMessageBubble";
 
 const WELCOME_MESSAGE = `Hello! I'm your M&A discovery assistant. I can help you with:
 
@@ -40,6 +40,7 @@ function ChatMessages(props: {
   emptyStateComponent: ReactNode;
   aiEmoji?: string;
   className?: string;
+  isLoading?: boolean;
 }) {
   return (
     <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
@@ -47,6 +48,7 @@ function ChatMessages(props: {
       {props.messages.map((message) => (
         <ChatMessageBubble key={message.id} message={message} aiEmoji={props.aiEmoji} />
       ))}
+      {props.isLoading && <LoadingBubble />}
     </div>
   );
 }
@@ -185,6 +187,7 @@ export function ChatWindow(props: {
             aiEmoji={props.emoji}
             messages={messages}
             emptyStateComponent={props.emptyStateComponent}
+            isLoading={status === "submitted"}
           />
         )
       }

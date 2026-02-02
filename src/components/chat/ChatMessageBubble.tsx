@@ -1,7 +1,7 @@
 import { type UIMessage } from "@ai-sdk/react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Bot, User, ChevronDown, ChevronRight, Wrench } from "lucide-react";
+import { Bot, User, ChevronDown, ChevronRight, Wrench, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import {
   Collapsible,
@@ -16,58 +16,33 @@ interface ChatMessageBubbleProps {
   className?: string;
 }
 
-interface ToolResultProps {
-  part: any;
-  isCollapsed: boolean;
-  onOpenChange: (open: boolean) => void;
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-center gap-1 text-muted-foreground py-2">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      <span className="text-sm">Thinking</span>
+      <span className="flex gap-0.5">
+        <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
+        <span className="animate-bounce" style={{ animationDelay: "150ms" }}>.</span>
+        <span className="animate-bounce" style={{ animationDelay: "300ms" }}>.</span>
+      </span>
+    </div>
+  );
 }
 
-function ToolResult({ part, isCollapsed, onOpenChange }: ToolResultProps) {
-  const toolName = part.toolName || "Tool";
-  const output = part.output;
-
-  // Extract content from the ToolMessage structure if present
-  let displayContent = "";
-  if (output?.kwargs?.content) {
-    displayContent = output.kwargs.content;
-  } else if (typeof output === "string") {
-    displayContent = output;
-  } else if (output) {
-    displayContent = JSON.stringify(output, null, 2);
-  }
-
+export function LoadingBubble() {
   return (
-    <Collapsible open={!isCollapsed} onOpenChange={(open) => onOpenChange(!open)}>
-      <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1 w-full">
-        <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md border">
-          <Wrench className="h-3 w-3" />
-          <span className="font-medium">{toolName}</span>
-          {isCollapsed ? (
-            <ChevronRight className="h-3 w-3 ml-1" />
-          ) : (
-            <ChevronDown className="h-3 w-3 ml-1" />
-          )}
-        </div>
-        {part.state && (
-          <span className={cn(
-            "text-[10px] px-1.5 py-0.5 rounded",
-            part.state === "output-available" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
-              part.state === "running" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
-                "bg-muted text-muted-foreground"
-          )}>
-            {part.state === "output-available" ? "completed" : part.state}
-          </span>
-        )}
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-2 max-h-48 overflow-y-auto rounded-md bg-muted/30 border p-3 text-xs">
-          <MarkdownRenderer
-            content={displayContent}
-            className="prose-xs [&_*]:text-xs"
-          />
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+    <div className="flex gap-4 mb-6">
+      {/* Avatar */}
+      <div className="flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
+        <Bot className="h-5 w-5 text-white" />
+      </div>
+
+      {/* Thinking Indicator */}
+      <div className="flex-1 max-w-[80%] flex flex-col items-start">
+        <ThinkingIndicator />
+      </div>
+    </div>
   );
 }
 
@@ -80,10 +55,18 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
     (part) => part.type === "text" && (part as any).text?.trim()
   );
 
-  // Check if any text part is currently streaming (state === 'streaming' or no state yet with partial content)
-  const isStreaming = parts.some(
-    (part) => part.type === "text" && (part as any).state !== "done"
+  // Check if streaming is complete (all text parts have state === 'done')
+  const isStreamingComplete = parts.length > 0 &&
+    parts.filter((part) => part.type === "text").every((part) => (part as any).state === "done");
+
+  // Check if tools are still running
+  const hasRunningTools = parts.some(
+    (part) => (part.type === "dynamic-tool" || part.type === "tool-invocation") &&
+      (part as any).state !== "output-available"
   );
+
+  // Show thinking indicator when: no text content yet OR tools are running
+  const showThinking = !isUser && (!hasTextContent || hasRunningTools) && !isStreamingComplete;
 
   // Auto-collapse tool results when text starts streaming
   const [toolsCollapsed, setToolsCollapsed] = useState(false);
@@ -135,19 +118,71 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
 
       {/* Message Content */}
       <div className="flex-1 max-w-[80%] flex flex-col items-start gap-2">
-        {/* Tool Results - Outside and above the chat bubble */}
+        {/* Tool Results - All tools behind a single collapsible */}
         {toolParts.length > 0 && (
-          <div className="w-full space-y-1">
-            {toolParts.map((part, index) => (
-              <ToolResult
-                key={`tool-${index}`}
-                part={part}
-                isCollapsed={toolsCollapsed}
-                onOpenChange={(collapsed) => setToolsCollapsed(collapsed)}
-              />
-            ))}
-          </div>
+          <Collapsible
+            open={!toolsCollapsed}
+            onOpenChange={(open) => setToolsCollapsed(!open)}
+            className="w-full"
+          >
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 px-3 w-full bg-muted/40 rounded-lg border hover:bg-muted/60">
+              <Wrench className="h-4 w-4" />
+              <span className="font-medium">
+                {toolParts.length} tool{toolParts.length > 1 ? "s" : ""} used
+              </span>
+              {toolsCollapsed ? (
+                <ChevronRight className="h-4 w-4 ml-auto" />
+              ) : (
+                <ChevronDown className="h-4 w-4 ml-auto" />
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-2 space-y-2 max-h-64 overflow-y-auto rounded-lg bg-muted/20 border p-3">
+                {toolParts.map((part, index) => {
+                  const toolName = (part as any).toolName || "Tool";
+                  const output = (part as any).output;
+
+                  // Extract content from the ToolMessage structure if present
+                  let displayContent = "";
+                  if (output?.kwargs?.content) {
+                    displayContent = output.kwargs.content;
+                  } else if (typeof output === "string") {
+                    displayContent = output;
+                  } else if (output) {
+                    displayContent = JSON.stringify(output, null, 2);
+                  }
+
+                  return (
+                    <div key={`tool-${index}`} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold text-foreground">{toolName}</span>
+                        {(part as any).state && (
+                          <span className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded",
+                            (part as any).state === "output-available" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                              (part as any).state === "running" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
+                                "bg-muted text-muted-foreground"
+                          )}>
+                            {(part as any).state === "output-available" ? "completed" : (part as any).state}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <MarkdownRenderer
+                          content={displayContent}
+                          className="prose-xs [&_*]:text-xs"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
+
+        {/* Thinking Indicator - Shows when agent is still processing */}
+        {showThinking && <ThinkingIndicator />}
 
         {/* Text Content - Inside the chat bubble */}
         {textParts.some((part) => (part as any).text?.trim()) && (
