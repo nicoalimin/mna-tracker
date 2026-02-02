@@ -87,6 +87,10 @@ export interface InvokeOptions {
   additionalSystemContext?: string;
 }
 
+export interface InvokeConfig {
+  recursionLimit?: number;
+}
+
 export interface InvokeResult {
   messages: BaseMessage[];
 }
@@ -141,7 +145,7 @@ export class AgentGraph {
   /**
    * Invoke the agent with messages and optional additional system context.
    */
-  async invoke(inputs: InvokeOptions): Promise<InvokeResult> {
+  async invoke(inputs: InvokeOptions, config?: InvokeConfig): Promise<InvokeResult> {
     logger.debug(`messages are ${JSON.stringify(inputs)}`);
     logger.debug("=".repeat(60));
     logger.debug("🚀 AGENT INVOCATION STARTED");
@@ -152,7 +156,7 @@ export class AgentGraph {
       if (inputs.additionalSystemContext) {
         logger.debug("📎 Additional system context provided");
       }
-      const result = await agent.invoke({ messages: inputs.messages });
+      const result = await agent.invoke({ messages: inputs.messages }, config);
       logger.debug("✓ Agent graph invocation completed");
 
       logger.debug("✅ AGENT INVOCATION COMPLETED SUCCESSFULLY");
@@ -174,8 +178,8 @@ export class AgentGraph {
   /**
    * Async invoke (same as invoke for now).
    */
-  async ainvoke(inputs: InvokeOptions): Promise<InvokeResult> {
-    return this.invoke(inputs);
+  async ainvoke(inputs: InvokeOptions, config?: InvokeConfig): Promise<InvokeResult> {
+    return this.invoke(inputs, config);
   }
 
   /**

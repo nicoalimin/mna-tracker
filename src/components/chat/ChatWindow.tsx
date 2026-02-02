@@ -2,15 +2,17 @@
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
-import { ArrowDown, LoaderCircle } from "lucide-react";
+import { ArrowDown, LoaderCircle, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChatMessageBubble, LoadingBubble } from "./ChatMessageBubble";
+
+const STORAGE_KEY = "mna-chat-history";
 
 const WELCOME_MESSAGE = `Hello! I'm your M&A discovery assistant. I can help you with:
 
@@ -41,9 +43,24 @@ function ChatMessages(props: {
   aiEmoji?: string;
   className?: string;
   isLoading?: boolean;
+  onClearHistory?: () => void;
 }) {
   return (
     <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
+      {/* Clear History Button */}
+      {props.messages.length > 0 && props.onClearHistory && (
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={props.onClearHistory}
+            className="text-muted-foreground hover:text-destructive gap-1.5"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear History
+          </Button>
+        </div>
+      )}
       <WelcomeMessage />
       {props.messages.map((message) => (
         <ChatMessageBubble key={message.id} message={message} aiEmoji={props.aiEmoji} />
@@ -152,6 +169,30 @@ export function ChatLayout(props: { content: ReactNode; footer: ReactNode }) {
   );
 }
 
+// Load messages from localStorage
+function loadMessagesFromStorage(): UIMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error("Failed to load chat history:", e);
+  }
+  return [];
+}
+
+// Save messages to localStorage
+function saveMessagesToStorage(messages: UIMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  } catch (e) {
+    console.error("Failed to save chat history:", e);
+  }
+}
+
 export function ChatWindow(props: {
   endpoint: string;
   emptyStateComponent: ReactNode;
@@ -159,13 +200,14 @@ export function ChatWindow(props: {
   emoji?: string;
 }) {
   const [input, setInput] = useState("");
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const transport = useMemo(
     () => new DefaultChatTransport({ api: props.endpoint }),
     [props.endpoint]
   );
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, setMessages } = useChat({
     transport,
     onError: (e: Error) => {
       console.error(e);
@@ -174,6 +216,34 @@ export function ChatWindow(props: {
       });
     },
   });
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const stored = loadMessagesFromStorage();
+    if (stored.length > 0) {
+      setMessages(stored);
+    }
+    setIsHydrated(true);
+  }, [setMessages]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (isHydrated && messages.length > 0) {
+      saveMessagesToStorage(messages);
+    }
+  }, [messages, isHydrated]);
+
+  // Clear history handler
+  const handleClearHistory = useCallback(() => {
+    setMessages([]);
+    localStorage.removeItem(STORAGE_KEY);
+    toast.success("Chat history cleared");
+  }, [setMessages]);
+
+  // Don't render until hydrated to avoid hydration mismatch
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <ChatLayout
@@ -188,6 +258,7 @@ export function ChatWindow(props: {
             messages={messages}
             emptyStateComponent={props.emptyStateComponent}
             isLoading={status === "submitted"}
+            onClearHistory={handleClearHistory}
           />
         )
       }

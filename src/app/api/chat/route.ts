@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
        */
       const eventStream = await agent.streamEvents(
         { messages, additionalSystemContext: contextData || undefined },
-        { version: "v2" },
+        { version: "v2", recursionLimit: 50 },
       );
 
       // Convert LangChain streamEvents to AI SDK UIMessageStream format
@@ -147,10 +147,13 @@ export async function POST(req: NextRequest) {
       /**
        * Return intermediate steps
        */
-      const result = await agent.invoke({
-        messages,
-        additionalSystemContext: contextData || undefined
-      });
+      const result = await agent.invoke(
+        {
+          messages,
+          additionalSystemContext: contextData || undefined
+        },
+        { recursionLimit: 50 }
+      );
 
       // Fallback if result.messages are strings (legacy behavior handled by wrapper update now anyway)
       const validMessages = result.messages.map(m => {
