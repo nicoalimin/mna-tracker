@@ -34,7 +34,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ChatbotWidget } from '@/components/chat/ChatbotWidget';
+// import { ChatbotWidget } from '@/components/chat/ChatbotWidget';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -168,7 +168,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </SidebarInset>
 
           {/* Chatbot Widget - shown on all pages except AI Discovery */}
-          {pathname !== '/ai-discovery' && <ChatbotWidget />}
+          {/* {pathname !== '/ai-discovery' && <ChatbotWidget />} */}
         </div>
       </SidebarProvider>
     </ProtectedRoute>

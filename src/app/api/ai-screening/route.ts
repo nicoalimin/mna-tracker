@@ -116,7 +116,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Extract the response
-    const content = result.messages[0] || "";
+    const msg = result.messages[0];
+    const content = msg ? (typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)) : "";
 
     let screeningResult: ScreeningResult;
     try {

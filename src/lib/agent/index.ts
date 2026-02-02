@@ -2,17 +2,8 @@
  * LangGraph agent with Anthropic Claude and company data query tools.
  */
 import { ChatAnthropic } from "@langchain/anthropic";
-import { HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
-import {
-  StateGraph,
-  StateSchema,
-  MessagesValue,
-  ReducedValue,
-  GraphNode,
-  START,
-  END,
-} from "@langchain/langgraph";
-import { z } from "zod";
+import { createAgent } from "langchain";
+import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import { tools } from "./tools";
 import { logger } from "./logger";
 
@@ -91,157 +82,119 @@ export interface AgentConfig {
   apiKey: string;
 }
 
+export interface InvokeOptions {
+  messages: BaseMessage[];
+  additionalSystemContext?: string;
+}
+
+export interface InvokeConfig {
+  recursionLimit?: number;
+}
+
 export interface InvokeResult {
-  messages: string[];
+  messages: BaseMessage[];
 }
 
 /**
- * Create the LangGraph agent.
+ * Create the LangGraph agent with optional additional system context.
  */
-const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
-
-const MessagesState = new StateSchema({
-  messages: MessagesValue,
-  llmCalls: new ReducedValue(z.number() as any, {
-    reducer: (x: number, y: number) => x + y,
-  }),
-});
-
-const toolNode: GraphNode<typeof MessagesState> = async (state) => {
-  const lastMessage = state.messages.at(-1);
-
-  if (lastMessage == null || !AIMessage.isInstance(lastMessage)) {
-    return { messages: [] };
-  }
-
-  const result: ToolMessage[] = [];
-  for (const toolCall of lastMessage.tool_calls ?? []) {
-    const tool = toolsByName[toolCall.name];
-    if (!tool) {
-      logger.error(`Tool not found: ${toolCall.name}`);
-      continue;
-    }
-    const observation = await (tool as any).invoke(toolCall.args);
-    result.push(
-      new ToolMessage({
-        content: typeof observation === "string" ? observation : JSON.stringify(observation),
-        tool_call_id: toolCall.id!,
-      })
-    );
-  }
-
-  return { messages: result };
-};
-
-const createLLMCall = (modelWithTools: any): GraphNode<typeof MessagesState> => {
-  return async (state) => {
-    const response = await modelWithTools.invoke([
-      new SystemMessage(SYSTEM_PROMPT),
-      ...state.messages,
-    ]);
-    return {
-      messages: [response],
-      llmCalls: 1,
-    };
-  };
-};
-
-function shouldContinue(state: typeof MessagesState.State) {
-  const lastMessage = state.messages.at(-1);
-  if (
-    lastMessage &&
-    AIMessage.isInstance(lastMessage) &&
-    lastMessage.tool_calls &&
-    lastMessage.tool_calls.length > 0
-  ) {
-    return "toolNode";
-  }
-  return END;
-}
-
-/**
- * Create the LangGraph agent.
- */
-export async function createAgentLocal(config: AgentConfig) {
+export function createLocalAgent(config: AgentConfig, additionalSystemContext?: string) {
   const llm = new ChatAnthropic({
-    model: "claude-sonnet-4-5-20250929",
-    apiKey: config.apiKey,
+    model: "claude-sonnet-4-20250514",
+    anthropicApiKey: config.apiKey,
     temperature: 0,
   });
 
-  const modelWithTools = llm.bindTools(tools);
-  const llmCall = createLLMCall(modelWithTools);
+  // Combine base system prompt with additional context if provided
+  const fullSystemPrompt = additionalSystemContext
+    ? `${SYSTEM_PROMPT}\n\n---\n\n## Additional Context\n\n${additionalSystemContext}`
+    : SYSTEM_PROMPT;
 
-  const workflow = new StateGraph(MessagesState)
-    .addNode("llmCall", llmCall)
-    .addNode("toolNode", toolNode)
-    .addEdge(START, "llmCall")
-    .addConditionalEdges("llmCall", shouldContinue, ["toolNode", END])
-    .addEdge("toolNode", "llmCall");
+  const agent = createAgent({
+    model: llm,
+    tools,
+    systemPrompt: fullSystemPrompt,
+  });
 
-  return workflow.compile();
+  return agent;
 }
 
 /**
  * Agent wrapper class for compatibility.
  */
 export class AgentGraph {
-  private agent: any;
+  private config: AgentConfig;
+  private defaultAgent: ReturnType<typeof createAgent>;
 
-  constructor(agent: any) {
-    this.agent = agent;
+  constructor(config: AgentConfig) {
+    this.config = config;
+    this.defaultAgent = createLocalAgent(config);
   }
 
   /**
-   * Invoke the agent with messages.
+   * Get an agent instance, optionally with additional system context.
    */
-  async invoke(inputs: { messages: BaseMessage[] }): Promise<InvokeResult> {
+  private getAgent(additionalSystemContext?: string): ReturnType<typeof createAgent> {
+    if (!additionalSystemContext) {
+      return this.defaultAgent;
+    }
+    // Create a new agent with the additional context appended to system prompt
+    return createLocalAgent(this.config, additionalSystemContext);
+  }
+
+  /**
+   * Invoke the agent with messages and optional additional system context.
+   */
+  async invoke(inputs: InvokeOptions, config?: InvokeConfig): Promise<InvokeResult> {
+    logger.debug(`messages are ${JSON.stringify(inputs)}`);
     logger.debug("=".repeat(60));
     logger.debug("🚀 AGENT INVOCATION STARTED");
 
     try {
+      const agent = this.getAgent(inputs.additionalSystemContext);
       logger.debug(`📨 Sending ${inputs.messages.length} message(s) to agent`);
-      const result = await this.agent.invoke(inputs);
-      logger.debug("✓ Agent graph invocation completed");
-
-      // Extract content from result
-      let content = "";
-      if (result && typeof result === "object" && "messages" in result) {
-        const messagesList = result.messages as BaseMessage[];
-        if (messagesList && messagesList.length > 0) {
-          const lastMessage = messagesList[messagesList.length - 1];
-          content =
-            typeof lastMessage.content === "string"
-              ? lastMessage.content
-              : JSON.stringify(lastMessage.content);
-        }
-      } else {
-        content = JSON.stringify(result);
+      if (inputs.additionalSystemContext) {
+        logger.debug("📎 Additional system context provided");
       }
+      const result = await agent.invoke({ messages: inputs.messages }, config);
+      logger.debug("✓ Agent graph invocation completed");
 
       logger.debug("✅ AGENT INVOCATION COMPLETED SUCCESSFULLY");
       logger.debug("=".repeat(60));
 
-      return { messages: [content] };
+      // Return full messages including tool calls
+      if (result && typeof result === "object" && "messages" in result) {
+        return { messages: result.messages as BaseMessage[] };
+      }
+
+      return { messages: [new AIMessage(JSON.stringify(result))] };
     } catch (error) {
       logger.error(`✗ AGENT INVOCATION FAILED: ${(error as Error).message}`);
       logger.debug("=".repeat(60));
-      return { messages: [`Error invoking agent: ${(error as Error).message}`] };
+      return { messages: [new AIMessage(`Error invoking agent: ${(error as Error).message}`)] };
     }
   }
 
   /**
    * Async invoke (same as invoke for now).
    */
-  async ainvoke(inputs: { messages: BaseMessage[] }): Promise<InvokeResult> {
-    return this.invoke(inputs);
+  async ainvoke(inputs: InvokeOptions, config?: InvokeConfig): Promise<InvokeResult> {
+    return this.invoke(inputs, config);
+  }
+
+  /**
+   * Stream events from the agent with optional additional system context.
+   */
+  async streamEvents(inputs: InvokeOptions, config?: any) {
+    const agent = this.getAgent(inputs.additionalSystemContext);
+    return agent.streamEvents({ messages: inputs.messages }, config);
   }
 }
 
 // Create agent instance on demand
 let agentGraph: AgentGraph | null = null;
 
-export async function getAgentGraph(): Promise<AgentGraph | null> {
+export function getAgentGraph(): AgentGraph | null {
   if (agentGraph) {
     return agentGraph;
   }
@@ -253,15 +206,13 @@ export async function getAgentGraph(): Promise<AgentGraph | null> {
   }
 
   try {
-    const agent = await createAgentLocal({ apiKey });
-    agentGraph = new AgentGraph(agent);
+    agentGraph = new AgentGraph({ apiKey });
     return agentGraph;
   } catch (error) {
     logger.error(`Failed to create agent: ${(error as Error).message}`);
     return null;
   }
 }
-
 
 // Reset agent (useful for testing or config changes)
 export function resetAgent(): void {
