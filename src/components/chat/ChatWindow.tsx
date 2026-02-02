@@ -27,9 +27,10 @@ const WELCOME_MESSAGE = `# Hello! I'm your M&A discovery assistant. I can help y
 
 💡 **Try asking:**  
 • "Find semiconductor companies"  
-• "Analyze ChipTech Solutions"  
-• "Compare ChipTech vs NanoSilicon"  
-• "Pipeline performance summary"`;
+• "Show me the top 3 petrochemical companies in Korea between 100 million and 1 billion enterprise value"  
+• "Show me the notes where Project Sunrise is mentioned."  
+• "Pipeline performance summary"
+• "Which companies are in the L0 step and how long have they been there?"`;
 
 const welcomeUIMessage: UIMessage = {
   id: "welcome",
