@@ -69,8 +69,6 @@ export default function AIDiscovery() {
             endpoint="/api/chat"
             emoji="🤖"
             placeholder="Ask about companies, analysis, comparisons..."
-            showIntermediateStepsToggle={true}
-            initialMessages={initialMessages}
             emptyStateComponent={
               <div className="flex flex-col items-center justify-center h-full sm:p-8 p-4 text-center mt-12">
                 {/* <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
