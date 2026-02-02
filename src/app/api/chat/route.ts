@@ -93,6 +93,8 @@ export async function POST(req: NextRequest) {
     // Fetch context
     const contextData = await fetchContextData();
 
+    console.log(body.messages);
+
     // Filter messages and convert to LangChain format using the adapter
     const filteredMessages = (body.messages ?? []).filter(
       (message: any) =>
