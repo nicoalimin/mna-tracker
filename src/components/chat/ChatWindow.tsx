@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
+import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useState, useMemo } from "react";
 import type { ReactNode } from "react";
@@ -10,6 +10,30 @@ import { ArrowDown, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ChatMessageBubble } from "./ChatMessageBubble";
+
+const WELCOME_MESSAGE = `Hello! I'm your M&A discovery assistant. I can help you with:
+
+🔍 **Company Discovery** - Find acquisition targets by sector
+🔬 **Deep Dive Analysis** - Detailed company assessments
+⚖️ **Comparison & Synergy** - Compare companies, evaluate fit
+📊 **Pipeline Insights** - Performance metrics and bottlenecks
+
+💡 **Try asking:**
+• "Find semiconductor companies"
+• "Analyze ChipTech Solutions"
+• "Compare ChipTech vs NanoSilicon"
+• "Pipeline performance summary"`;
+
+const welcomeUIMessage: UIMessage = {
+  id: "welcome",
+  role: "assistant",
+  parts: [{ type: "text", text: WELCOME_MESSAGE }],
+};
+
+function WelcomeMessage() {
+  return <ChatMessageBubble message={welcomeUIMessage} />;
+}
 
 function ChatMessages(props: {
   messages: ReturnType<typeof useChat>["messages"];
@@ -19,32 +43,9 @@ function ChatMessages(props: {
 }) {
   return (
     <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
+      <WelcomeMessage />
       {props.messages.map((message) => (
-        <div
-          key={message.id}
-          className={cn(
-            "whitespace-pre-wrap p-4 rounded-lg mb-4",
-            message.role === "user"
-              ? "bg-secondary ml-auto max-w-[80%]"
-              : "bg-muted mr-auto max-w-[80%]"
-          )}
-        >
-          <div className="font-semibold mb-1 text-sm text-muted-foreground">
-            {message.role === "user" ? "You" : props.aiEmoji ?? "🤖 AI"}
-          </div>
-          {message.parts.map((part, i) => {
-            switch (part.type) {
-              case "text":
-                return (
-                  <div key={`${message.id}-${i}`} className="text-sm">
-                    {part.text}
-                  </div>
-                );
-              default:
-                return null;
-            }
-          })}
-        </div>
+        <ChatMessageBubble key={message.id} message={message} aiEmoji={props.aiEmoji} />
       ))}
     </div>
   );
@@ -176,7 +177,9 @@ export function ChatWindow(props: {
     <ChatLayout
       content={
         messages.length === 0 ? (
-          <div className="max-w-[768px] mx-auto w-full">{props.emptyStateComponent}</div>
+          <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
+            <WelcomeMessage />
+          </div>
         ) : (
           <ChatMessages
             aiEmoji={props.emoji}
