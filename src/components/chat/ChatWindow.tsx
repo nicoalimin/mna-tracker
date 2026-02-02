@@ -14,17 +14,21 @@ import { ChatMessageBubble, LoadingBubble } from "./ChatMessageBubble";
 
 const STORAGE_KEY = "mna-chat-history";
 
-const WELCOME_MESSAGE = `Hello! I'm your M&A discovery assistant. I can help you with:
+const WELCOME_MESSAGE = `# Hello! I'm your M&A discovery assistant. I can help you with
 
-🔍 **Company Discovery** - Find acquisition targets by sector
-🔬 **Deep Dive Analysis** - Detailed company assessments
-⚖️ **Comparison & Synergy** - Compare companies, evaluate fit
-📊 **Pipeline Insights** - Performance metrics and bottlenecks
+---
 
-💡 **Try asking:**
-• "Find semiconductor companies"
-• "Analyze ChipTech Solutions"
-• "Compare ChipTech vs NanoSilicon"
+🔍 **Company Discovery** - Find acquisition targets by sector  
+🔬 **Deep Dive Analysis** - Detailed company assessments  
+⚖️ **Comparison & Synergy** - Compare companies, evaluate fit  
+📊 **Pipeline Insights** - Performance metrics and bottlenecks  
+
+---
+
+💡 **Try asking:**  
+• "Find semiconductor companies"  
+• "Analyze ChipTech Solutions"  
+• "Compare ChipTech vs NanoSilicon"  
 • "Pipeline performance summary"`;
 
 const welcomeUIMessage: UIMessage = {
