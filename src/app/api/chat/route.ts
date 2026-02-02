@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     // Fetch context
     const contextData = await fetchContextData();
 
-    console.log(body.messages);
+    console.log(JSON.stringify(body.messages));
 
     // Filter messages and convert to LangChain format using the adapter
     const filteredMessages = (body.messages ?? []).filter(
@@ -103,9 +103,13 @@ export async function POST(req: NextRequest) {
 
     // Normalize messages to ensure they have the required 'parts' structure for toBaseMessages
     const rawMessages: UIMessage[] = filteredMessages.map((msg: any) => {
-      // If message already has parts, use it as-is
+      // If message already has parts, filter to only include text parts
       if (msg.parts && Array.isArray(msg.parts)) {
-        return msg;
+        const textParts = msg.parts.filter((part: any) => part.type === 'text');
+        return {
+          ...msg,
+          parts: textParts,
+        };
       }
       // Otherwise, convert content to parts format
       return {
