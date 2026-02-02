@@ -524,16 +524,58 @@ export const webSearch = tool(
         ],
       } as any);
 
-      // Extract text content from response
+      // Extract text content and citations from response
       const outputLines = [`**Web Search Results for '${query}':**\n`];
+      const citations: { title: string; url: string }[] = [];
 
       for (const block of response.content) {
         if (block.type === "text") {
           outputLines.push(block.text);
+
+          // Extract citations from the text block if they exist
+          if ((block as any).citations && Array.isArray((block as any).citations)) {
+            for (const citation of (block as any).citations) {
+              if (citation.url && !citations.some(c => c.url === citation.url)) {
+                citations.push({
+                  title: citation.title || citation.url,
+                  url: citation.url,
+                });
+              }
+            }
+          }
+        }
+
+        // Also check for web_search_tool_result blocks which contain citations
+        const blockType = (block as any).type;
+        if (blockType === "web_search_tool_result" || blockType === "tool_result") {
+          const content = (block as any).content;
+          if (Array.isArray(content)) {
+            for (const item of content) {
+              if (item.type === "web_search_result" && item.url) {
+                if (!citations.some(c => c.url === item.url)) {
+                  citations.push({
+                    title: item.title || item.url,
+                    url: item.url,
+                  });
+                }
+              }
+            }
+          }
         }
       }
 
-      logger.debug("✓ Web search completed");
+      // Add citations section if we found any
+      if (citations.length > 0) {
+        outputLines.push("\n\n---\n**Sources:**");
+        citations.forEach((c, i) => {
+          outputLines.push(`${i + 1}. [${c.title}](${c.url})`);
+        });
+
+        // Also include structured citation data for frontend parsing
+        outputLines.push(`\n\n<!-- CITATIONS_JSON:${JSON.stringify(citations)} -->`);
+      }
+
+      logger.debug(`✓ Web search completed with ${citations.length} citations`);
       return outputLines.length > 1 ? outputLines.join("\n") : "No results found.";
     } catch (error) {
       logger.error(`✗ Web search error: ${(error as Error).message}`);

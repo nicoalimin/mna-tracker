@@ -108,6 +108,34 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
   );
   const textParts = parts.filter((part) => part.type === "text");
 
+  // Extract citations from all web_search tool results
+  const allCitations: { title: string; url: string }[] = [];
+  for (const part of toolParts) {
+    const toolName = (part as any).toolName || "";
+    if (toolName === "web_search") {
+      const output = (part as any).output;
+      let content = "";
+      if (output?.kwargs?.content) {
+        content = output.kwargs.content;
+      } else if (typeof output === "string") {
+        content = output;
+      }
+      const citationMatch = content.match(/<!-- CITATIONS_JSON:(.*?) -->/);
+      if (citationMatch) {
+        try {
+          const citations = JSON.parse(citationMatch[1]);
+          for (const cite of citations) {
+            if (!allCitations.some(c => c.url === cite.url)) {
+              allCitations.push(cite);
+            }
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+  }
+
   // For assistant messages, render parts with switch statement
   return (
     <div className="flex gap-4 mb-6">
@@ -151,6 +179,9 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
                   } else if (output) {
                     displayContent = JSON.stringify(output, null, 2);
                   }
+
+                  // Remove citation JSON from display content
+                  displayContent = displayContent.replace(/\n*<!-- CITATIONS_JSON:.*? -->/, "");
 
                   return (
                     <div key={`tool-${index}`} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
@@ -208,6 +239,29 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
                 <div key={i} className="bg-muted px-2 py-1 rounded border">
                   {source.title || source.name || "Source"}
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Web Search Citations - Below chat bubble */}
+        {allCitations.length > 0 && (
+          <div className="mt-2">
+            <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">📚 Sources</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allCitations.slice(0, 6).map((cite, i) => (
+                <a
+                  key={i}
+                  href={cite.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors border border-blue-100 dark:border-blue-800"
+                >
+                  {cite.title.length > 35 ? cite.title.substring(0, 35) + "..." : cite.title}
+                  <svg className="h-3 w-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
               ))}
             </div>
           </div>
