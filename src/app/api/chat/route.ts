@@ -1,30 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAgentGraph, HumanMessage, AIMessage } from "@/lib/agent";
+import { getAgentGraph, AIMessage } from "@/lib/agent";
 import { createClient } from "@supabase/supabase-js";
-import { BaseMessage, ChatMessage, SystemMessage } from "@langchain/core/messages";
-
-// Simple interface for Vercel AI SDK Messages as received from client
-interface VercelChatMessage {
-  role: string;
-  content: string;
-  id?: string;
-  [key: string]: any;
-}
+import { BaseMessage, SystemMessage } from "@langchain/core/messages";
+import { toUIMessageStream, toBaseMessages } from "@ai-sdk/langchain";
+import { createUIMessageStreamResponse, UIMessage } from "ai";
 
 // Use Node.js runtime (not edge) for full API support
 // export const runtime = "edge";
-
-const convertVercelMessageToLangChainMessage = (message: VercelChatMessage) => {
-  if (message.role === "user") {
-    return new HumanMessage(message.content);
-  } else if (message.role === "assistant") {
-    return new AIMessage(message.content);
-  } else if (message.role === "system") {
-    return new SystemMessage(message.content);
-  } else {
-    return new ChatMessage(message.content, message.role);
-  }
-};
 
 const convertLangChainMessageToVercelMessage = (message: BaseMessage) => {
   if (message._getType() === "human") {
@@ -111,20 +93,21 @@ export async function POST(req: NextRequest) {
     // Fetch context
     const contextData = await fetchContextData();
 
-    // Filter and transform messages
-    const rawMessages = (body.messages ?? []).filter(
-      (message: VercelChatMessage) =>
+    // Filter messages and convert to LangChain format using the adapter
+    const rawMessages: UIMessage[] = (body.messages ?? []).filter(
+      (message: UIMessage) =>
         message.role === "user" || message.role === "assistant",
     );
 
-    const messages = rawMessages.map(convertVercelMessageToLangChainMessage);
+    // Use @ai-sdk/langchain adapter to convert UIMessages to LangChain BaseMessages
+    const messages: BaseMessage[] = await toBaseMessages(rawMessages);
 
     // Prepend context as a system message if available
     if (contextData) {
       messages.unshift(new SystemMessage(contextData));
     }
 
-    const agent = await getAgentGraph();
+    const agent = getAgentGraph();
     if (!agent) {
       return NextResponse.json(
         { error: "Agent not available. Please ensure ANTHROPIC_API_KEY is set." },
@@ -135,28 +118,17 @@ export async function POST(req: NextRequest) {
     if (!returnIntermediateSteps) {
       /**
        * Stream back all generated tokens and steps from their runs.
+       * Using streamEvents v2 which is supported by @ai-sdk/langchain adapter
        */
       const eventStream = await agent.streamEvents(
         { messages },
         { version: "v2" },
       );
 
-      const textEncoder = new TextEncoder();
-      const transformStream = new ReadableStream({
-        async start(controller) {
-          for await (const { event, data } of eventStream) {
-            if (event === "on_chat_model_stream") {
-              // Intermediate chat model generations will contain tool calls and no content
-              if (!!data.chunk.content) {
-                controller.enqueue(textEncoder.encode(data.chunk.content));
-              }
-            }
-          }
-          controller.close();
-        },
+      // Convert LangChain streamEvents to AI SDK UIMessageStream format
+      return createUIMessageStreamResponse({
+        stream: toUIMessageStream(eventStream),
       });
-
-      return new Response(transformStream);
     } else {
       /**
        * Return intermediate steps
