@@ -201,7 +201,6 @@ export function ChatWindow(props: {
       });
     }
   } as any);
-  console.log(chat.messages);
 
   async function sendMessage(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
