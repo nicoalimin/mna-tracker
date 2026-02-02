@@ -94,10 +94,23 @@ export async function POST(req: NextRequest) {
     const contextData = await fetchContextData();
 
     // Filter messages and convert to LangChain format using the adapter
-    const rawMessages: UIMessage[] = (body.messages ?? []).filter(
-      (message: UIMessage) =>
+    const filteredMessages = (body.messages ?? []).filter(
+      (message: any) =>
         message.role === "user" || message.role === "assistant",
     );
+
+    // Normalize messages to ensure they have the required 'parts' structure for toBaseMessages
+    const rawMessages: UIMessage[] = filteredMessages.map((msg: any) => {
+      // If message already has parts, use it as-is
+      if (msg.parts && Array.isArray(msg.parts)) {
+        return msg;
+      }
+      // Otherwise, convert content to parts format
+      return {
+        ...msg,
+        parts: msg.content ? [{ type: 'text', text: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content) }] : [],
+      };
+    });
 
     // Use @ai-sdk/langchain adapter to convert UIMessages to LangChain BaseMessages
     const messages: BaseMessage[] = await toBaseMessages(rawMessages);
