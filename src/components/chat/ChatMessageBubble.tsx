@@ -1,13 +1,23 @@
 import { type UIMessage } from "@ai-sdk/react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Bot, User, ChevronDown, ChevronRight, Wrench, Loader2 } from "lucide-react";
+import { Bot, User, ChevronDown, ChevronRight, Wrench, Loader2, FileText, X, Sparkles, FileSearch } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import FilePreview from "@/components/MeetingNotes/FilePreview";
+import { toast } from "sonner";
 
 interface ChatMessageBubbleProps {
   message: UIMessage;
@@ -110,16 +120,29 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
 
   // Extract citations from all web_search tool results
   const allCitations: { title: string; url: string }[] = [];
+  // Extract meeting notes from query_meeting_notes tool results - matches MeetingNote type
+  interface MeetingNoteRef {
+    id: string;
+    file_name: string;
+    file_link: string;
+    file_date: string | null;
+    tags: string[];
+    structured_notes: string | null;
+    matched_companies: any[];
+  }
+  const allMeetingNotes: MeetingNoteRef[] = [];
+
   for (const part of toolParts) {
     const toolName = (part as any).toolName || "";
+    const output = (part as any).output;
+    let content = "";
+    if (output?.kwargs?.content) {
+      content = output.kwargs.content;
+    } else if (typeof output === "string") {
+      content = output;
+    }
+
     if (toolName === "web_search") {
-      const output = (part as any).output;
-      let content = "";
-      if (output?.kwargs?.content) {
-        content = output.kwargs.content;
-      } else if (typeof output === "string") {
-        content = output;
-      }
       const citationMatch = content.match(/<!-- CITATIONS_JSON:(.*?) -->/);
       if (citationMatch) {
         try {
@@ -134,7 +157,60 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
         }
       }
     }
+
+    if (toolName === "query_meeting_notes") {
+      const notesMatch = content.match(/<!-- MEETING_NOTES_JSON:(.*?) -->/);
+      if (notesMatch) {
+        try {
+          const notes = JSON.parse(notesMatch[1]);
+          for (const note of notes) {
+            if (!allMeetingNotes.some(n => n.id === note.id)) {
+              allMeetingNotes.push(note);
+            }
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
   }
+
+  // State for meeting notes preview modal
+  const [previewNote, setPreviewNote] = useState<MeetingNoteRef | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // Fetch signed URL when opening preview
+  const handleOpenPreview = async (note: typeof previewNote) => {
+    if (!note) return;
+    setPreviewNote(note);
+    setLoadingPreview(true);
+    try {
+      // Use the meeting-notes API to get a signed URL
+      const res = await fetch(`/api/meeting-notes/${note.id}/download-url`);
+      if (res.ok) {
+        const data = await res.json();
+        setPreviewUrl(data.url);
+      } else {
+        // Fallback: try to use file_link directly if it's a full URL
+        if (note.file_link.startsWith('http')) {
+          setPreviewUrl(note.file_link);
+        } else {
+          toast.error("Failed to load file preview");
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch preview URL:", e);
+      toast.error("Failed to load file preview");
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewNote(null);
+    setPreviewUrl(null);
+  };
 
   // For assistant messages, render parts with switch statement
   return (
@@ -266,7 +342,153 @@ export function ChatMessageBubble(props: ChatMessageBubbleProps) {
             </div>
           </div>
         )}
+
+        {/* Meeting Notes - Below chat bubble */}
+        {allMeetingNotes.length > 0 && (
+          <div className="mt-2">
+            <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">📄 Meeting Notes</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allMeetingNotes.slice(0, 6).map((note, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleOpenPreview(note)}
+                  className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors border border-amber-100 dark:border-amber-800 cursor-pointer"
+                >
+                  <FileText className="h-3 w-3 flex-shrink-0" />
+                  {note.file_name?.length > 30 ? note.file_name.substring(0, 30) + "..." : note.file_name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Meeting Notes Preview Dialog */}
+      <Dialog open={!!previewNote} onOpenChange={(open) => !open && handleClosePreview()}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              <span className="truncate">{previewNote?.file_name}</span>
+              {previewNote?.file_date && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  {previewNote.file_date}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Side-by-side layout */}
+          <div className="grid md:grid-cols-2 gap-6 mt-4 overflow-hidden">
+            {/* Left: File Preview */}
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <FileSearch className="h-4 w-4" />
+                File Preview
+              </h3>
+              {loadingPreview ? (
+                <div className="flex h-[400px] w-full items-center justify-center bg-muted/30 rounded-md border">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : previewUrl ? (
+                <FilePreview
+                  url={previewUrl}
+                  fileName={previewNote?.file_name || ""}
+                />
+              ) : (
+                <div className="flex h-[400px] w-full items-center justify-center bg-muted/30 rounded-md border text-muted-foreground">
+                  Preview not available
+                </div>
+              )}
+            </div>
+
+            {/* Right: AI Structured Notes */}
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                AI Structured Notes
+              </h3>
+              <ScrollArea className="h-[400px] w-full rounded-md border p-4 bg-muted/30">
+                {previewNote?.structured_notes ? (
+                  <div className="space-y-4 text-sm">
+                    {(() => {
+                      try {
+                        const structured = JSON.parse(previewNote.structured_notes);
+                        return (
+                          <>
+                            {/* Tags */}
+                            {previewNote?.tags && previewNote.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pb-2">
+                                {previewNote.tags.map((tag, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Summary */}
+                            {structured.summary && (
+                              <div>
+                                <h4 className="font-medium text-primary mb-1">Summary</h4>
+                                <p>{structured.summary}</p>
+                              </div>
+                            )}
+
+                            {/* Key Points */}
+                            {structured.key_points && structured.key_points.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-primary mb-1">Key Points</h4>
+                                <ul className="list-disc pl-4 space-y-1">
+                                  {structured.key_points.map((point: string, i: number) => (
+                                    <li key={i}>{point}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Action Items */}
+                            {structured.action_items && structured.action_items.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-primary mb-1">Action Items</h4>
+                                <ul className="list-disc pl-4 space-y-1">
+                                  {structured.action_items.map((item: string, i: number) => (
+                                    <li key={i}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Matched Companies */}
+                            {previewNote?.matched_companies && previewNote.matched_companies.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-primary mb-1">Companies Mentioned</h4>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {previewNote.matched_companies.map((company, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs">
+                                      {typeof company === 'string' ? company : company.name || company.target || 'Unknown'}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      } catch (e) {
+                        return <pre className="text-xs whitespace-pre-wrap">{previewNote.structured_notes}</pre>;
+                      }
+                    })()}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic p-4">
+                    Processing not complete or structure extraction failed.
+                  </p>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

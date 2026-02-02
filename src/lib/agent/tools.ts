@@ -1609,6 +1609,17 @@ Returns:
 function formatNotesResults(notes: any[]): string {
   let result = `**Meeting Notes Results (${notes.length} records):**\n\n`;
 
+  // Collect note references for frontend - matching MeetingNote type structure
+  const noteRefs: {
+    id: string;
+    file_name: string;
+    file_link: string;
+    file_date: string | null;
+    tags: string[];
+    structured_notes: string | null;
+    matched_companies: any[];
+  }[] = [];
+
   notes.forEach((note, index) => {
     let structured = null;
     try {
@@ -1637,7 +1648,25 @@ function formatNotesResults(notes: any[]): string {
     }
 
     result += `\n`;
+
+    // Add to note references - pass structured_notes as raw JSON string
+    noteRefs.push({
+      id: note.id,
+      file_name: note.file_name,
+      file_link: note.file_link,
+      file_date: note.file_date || null,
+      tags: note.tags || [],
+      structured_notes: typeof note.structured_notes === 'string'
+        ? note.structured_notes
+        : note.structured_notes ? JSON.stringify(note.structured_notes) : null,
+      matched_companies: note.matched_companies || [],
+    });
   });
+
+  // Include structured data for frontend parsing
+  if (noteRefs.length > 0) {
+    result += `\n<!-- MEETING_NOTES_JSON:${JSON.stringify(noteRefs)} -->`;
+  }
 
   return result;
 }
