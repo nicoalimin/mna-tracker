@@ -82,24 +82,34 @@ export interface AgentConfig {
   apiKey: string;
 }
 
+export interface InvokeOptions {
+  messages: BaseMessage[];
+  additionalSystemContext?: string;
+}
+
 export interface InvokeResult {
   messages: BaseMessage[];
 }
 
 /**
- * Create the LangGraph agent.
+ * Create the LangGraph agent with optional additional system context.
  */
-export function createLocalAgent(config: AgentConfig) {
+export function createLocalAgent(config: AgentConfig, additionalSystemContext?: string) {
   const llm = new ChatAnthropic({
     model: "claude-sonnet-4-20250514",
     anthropicApiKey: config.apiKey,
     temperature: 0,
   });
 
+  // Combine base system prompt with additional context if provided
+  const fullSystemPrompt = additionalSystemContext
+    ? `${SYSTEM_PROMPT}\n\n---\n\n## Additional Context\n\n${additionalSystemContext}`
+    : SYSTEM_PROMPT;
+
   const agent = createAgent({
     model: llm,
     tools,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: fullSystemPrompt,
   });
 
   return agent;
@@ -109,22 +119,40 @@ export function createLocalAgent(config: AgentConfig) {
  * Agent wrapper class for compatibility.
  */
 export class AgentGraph {
-  private agent: ReturnType<typeof createAgent>;
+  private config: AgentConfig;
+  private defaultAgent: ReturnType<typeof createAgent>;
 
   constructor(config: AgentConfig) {
-    this.agent = createLocalAgent(config);
+    this.config = config;
+    this.defaultAgent = createLocalAgent(config);
   }
 
   /**
-   * Invoke the agent with messages.
+   * Get an agent instance, optionally with additional system context.
    */
-  async invoke(inputs: { messages: BaseMessage[] }): Promise<InvokeResult> {
+  private getAgent(additionalSystemContext?: string): ReturnType<typeof createAgent> {
+    if (!additionalSystemContext) {
+      return this.defaultAgent;
+    }
+    // Create a new agent with the additional context appended to system prompt
+    return createLocalAgent(this.config, additionalSystemContext);
+  }
+
+  /**
+   * Invoke the agent with messages and optional additional system context.
+   */
+  async invoke(inputs: InvokeOptions): Promise<InvokeResult> {
+    logger.debug(`messages are ${JSON.stringify(inputs)}`);
     logger.debug("=".repeat(60));
     logger.debug("🚀 AGENT INVOCATION STARTED");
 
     try {
+      const agent = this.getAgent(inputs.additionalSystemContext);
       logger.debug(`📨 Sending ${inputs.messages.length} message(s) to agent`);
-      const result = await this.agent.invoke(inputs);
+      if (inputs.additionalSystemContext) {
+        logger.debug("📎 Additional system context provided");
+      }
+      const result = await agent.invoke({ messages: inputs.messages });
       logger.debug("✓ Agent graph invocation completed");
 
       logger.debug("✅ AGENT INVOCATION COMPLETED SUCCESSFULLY");
@@ -146,12 +174,16 @@ export class AgentGraph {
   /**
    * Async invoke (same as invoke for now).
    */
-  async ainvoke(inputs: { messages: BaseMessage[] }): Promise<InvokeResult> {
+  async ainvoke(inputs: InvokeOptions): Promise<InvokeResult> {
     return this.invoke(inputs);
   }
 
-  async streamEvents(inputs: { messages: BaseMessage[] }, config?: any) {
-    return this.agent.streamEvents(inputs, config);
+  /**
+   * Stream events from the agent with optional additional system context.
+   */
+  async streamEvents(inputs: InvokeOptions, config?: any) {
+    const agent = this.getAgent(inputs.additionalSystemContext);
+    return agent.streamEvents({ messages: inputs.messages }, config);
   }
 }
 

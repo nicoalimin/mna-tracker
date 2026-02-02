@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentGraph, AIMessage } from "@/lib/agent";
 import { createClient } from "@supabase/supabase-js";
-import { BaseMessage, SystemMessage } from "@langchain/core/messages";
+import { BaseMessage } from "@langchain/core/messages";
 import { toUIMessageStream, toBaseMessages } from "@ai-sdk/langchain";
 import { createUIMessageStreamResponse, UIMessage } from "ai";
 
@@ -102,11 +102,6 @@ export async function POST(req: NextRequest) {
     // Use @ai-sdk/langchain adapter to convert UIMessages to LangChain BaseMessages
     const messages: BaseMessage[] = await toBaseMessages(rawMessages);
 
-    // Prepend context as a system message if available
-    if (contextData) {
-      messages.unshift(new SystemMessage(contextData));
-    }
-
     const agent = getAgentGraph();
     if (!agent) {
       return NextResponse.json(
@@ -121,7 +116,7 @@ export async function POST(req: NextRequest) {
        * Using streamEvents v2 which is supported by @ai-sdk/langchain adapter
        */
       const eventStream = await agent.streamEvents(
-        { messages },
+        { messages, additionalSystemContext: contextData || undefined },
         { version: "v2" },
       );
 
@@ -133,7 +128,10 @@ export async function POST(req: NextRequest) {
       /**
        * Return intermediate steps
        */
-      const result = await agent.invoke({ messages });
+      const result = await agent.invoke({
+        messages,
+        additionalSystemContext: contextData || undefined
+      });
 
       // Fallback if result.messages are strings (legacy behavior handled by wrapper update now anyway)
       const validMessages = result.messages.map(m => {
