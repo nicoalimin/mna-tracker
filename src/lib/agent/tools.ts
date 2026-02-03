@@ -20,6 +20,62 @@ function getSupabaseClient() {
   return createClient(url, key);
 }
 
+const PROJECT_CODENAME_PATTERN = /\bProject\s+[A-Za-z0-9][A-Za-z0-9\-]*(?:\s+[A-Za-z0-9][A-Za-z0-9\-]*){0,3}\b/gi;
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+async function resolveProjectCodenamesForWebSearch(query: string): Promise<{
+  resolvedQuery: string;
+  replacements: { codename: string; companyName: string }[];
+  removed: string[];
+}> {
+  const matches = query.match(PROJECT_CODENAME_PATTERN);
+  if (!matches || matches.length === 0) {
+    return { resolvedQuery: query, replacements: [], removed: [] };
+  }
+
+  let supabase;
+  try {
+    supabase = getSupabaseClient();
+  } catch (error) {
+    logger.warn(`Supabase not configured for codename resolution: ${(error as Error).message}`);
+    return { resolvedQuery: query, replacements: [], removed: [] };
+  }
+
+  const uniqueMatches = Array.from(new Set(matches.map((m) => m.trim())));
+  let resolvedQuery = query;
+  const replacements: { codename: string; companyName: string }[] = [];
+  const removed: string[] = [];
+
+  for (const codename of uniqueMatches) {
+    const { data, error } = await supabase
+      .from("past_acquisitions")
+      .select("project_name,target_co_partner")
+      .ilike("project_name", codename)
+      .limit(1);
+
+    if (error) {
+      logger.error(`Codename lookup failed for '${codename}': ${error.message}`);
+      continue;
+    }
+
+    const match = data?.find((row) => row.target_co_partner && row.target_co_partner.trim().length > 0);
+    if (match) {
+      const companyName = match.target_co_partner.trim();
+      resolvedQuery = resolvedQuery.replaceAll(codename, companyName);
+      replacements.push({ codename, companyName });
+    } else {
+      resolvedQuery = resolvedQuery.replaceAll(codename, "");
+      removed.push(codename);
+    }
+  }
+
+  resolvedQuery = normalizeWhitespace(resolvedQuery);
+  return { resolvedQuery, replacements, removed };
+}
+
 export const companiesSchema = [
   // Core identifiers
   { name: "id", type: "uuid" },
@@ -503,6 +559,18 @@ export const webSearch = tool(
     }
 
     try {
+      const { resolvedQuery, replacements, removed } = await resolveProjectCodenamesForWebSearch(query);
+      if (!resolvedQuery) {
+        return "Web search skipped because the query only contained internal project codenames that could not be resolved.";
+      }
+      if (replacements.length > 0 || removed.length > 0) {
+        const details = [
+          ...replacements.map((item) => `${item.codename} → ${item.companyName}`),
+          ...removed.map((item) => `${item} → removed`),
+        ];
+        logger.debug(`Codename translation applied before web_search: ${details.join(", ")}`);
+      }
+
       const client = new Anthropic({ apiKey });
 
       // Use Claude with web search tool enabled
@@ -519,13 +587,13 @@ export const webSearch = tool(
         messages: [
           {
             role: "user",
-            content: `Search the web for: ${query}\n\nProvide a summary of the most relevant and recent information you find.`,
+            content: `Search the web for: ${resolvedQuery}\n\nProvide a summary of the most relevant and recent information you find.`,
           },
         ],
       } as any);
 
       // Extract text content and citations from response
-      const outputLines = [`**Web Search Results for '${query}':**\n`];
+      const outputLines = [`**Web Search Results for '${resolvedQuery}':**\n`];
       const citations: { title: string; url: string }[] = [];
 
       for (const block of response.content) {
