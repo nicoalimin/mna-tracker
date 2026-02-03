@@ -51,26 +51,28 @@ function ChatMessages(props: {
   onClearHistory?: () => void;
 }) {
   return (
-    <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
-      {/* Clear History Button */}
+    <div className="w-full">
+      {/* Clear History Button - Sticky */}
       {props.messages.length > 0 && props.onClearHistory && (
-        <div className="flex justify-end mb-4">
+        <div className="sticky top-2 z-20 flex justify-end pb-2 pr-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={props.onClearHistory}
-            className="text-muted-foreground hover:text-destructive gap-1.5"
+            className="ml-auto text-muted-foreground hover:text-destructive gap-1.5 bg-background/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur"
           >
             <Trash2 className="h-4 w-4" />
             Clear History
           </Button>
         </div>
       )}
-      <WelcomeMessage />
-      {props.messages.map((message) => (
-        <ChatMessageBubble key={message.id} message={message} aiEmoji={props.aiEmoji} />
-      ))}
-      {props.isLoading && <LoadingBubble />}
+      <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
+        <WelcomeMessage />
+        {props.messages.map((message) => (
+          <ChatMessageBubble key={message.id} message={message} aiEmoji={props.aiEmoji} />
+        ))}
+        {props.isLoading && <LoadingBubble />}
+      </div>
     </div>
   );
 }
