@@ -17,7 +17,7 @@ aws configure
 # Option 2: Environment variables
 export AWS_ACCESS_KEY_ID="your-access-key"
 export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="ap-southeast-1"
+export AWS_REGION="ap-southeast-3"
 ```
 
 ## Usage
@@ -83,7 +83,7 @@ git push
 
 ### Bucket Configuration
 
-- **Region**: ap-southeast-1 (Singapore)
+- **Region**: ap-southeast-3 (Jakarta)
 - **Versioning**: Enabled
 - **Encryption**: AES-256 server-side encryption
 - **Public Access**: Blocked
