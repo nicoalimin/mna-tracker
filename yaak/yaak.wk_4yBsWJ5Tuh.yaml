@@ -1,0 +1,15 @@
+type: workspace
+model: workspace
+id: wk_4yBsWJ5Tuh
+createdAt: 2026-01-28T15:58:25.700323
+updatedAt: 2026-01-28T15:59:28.132614
+authentication: {}
+authenticationType: null
+description: ''
+headers: []
+name: Inven API
+encryptionKeyChallenge: eUE0azNuQwFv0ExPpsuqpIYjOq/tdmgrL2mWPQ8iO9XyWIRLk4puX0AAPQnKz2w6ZXQmqfJMvIVKMxVEoMh+q1f9UlZ3/KXymd78s1G4MQCNCIJqMW+2UaMWsv7dRLNEQKg=
+settingValidateCertificates: true
+settingFollowRedirects: true
+settingRequestTimeout: 0
+settingDnsOverrides: []

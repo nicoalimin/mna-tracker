@@ -1,0 +1,13 @@
+type: folder
+model: folder
+id: fl_haK2MkcjFS
+createdAt: 2026-01-28T15:58:25.701999
+updatedAt: 2026-01-28T15:58:25.701999
+workspaceId: wk_4yBsWJ5Tuh
+folderId: null
+authentication: {}
+authenticationType: null
+description: ''
+headers: []
+name: public-api/v1
+sortPriority: 0.0
