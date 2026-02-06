@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ import {
   AlertCircle,
   DollarSign,
   BarChart3,
+  Expand,
 } from 'lucide-react';
 import { DealStage, L1Status } from '@/lib/types';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -140,6 +142,7 @@ export default function CompanyDetailDialog({
   onOpenChange,
   onUpdate,
 }: CompanyDetailDialogProps) {
+  const router = useRouter();
   const [stageHistory, setStageHistory] = useState<StageHistory[]>([]);
   const [notes, setNotes] = useState<DealNote[]>([]);
   const [links, setLinks] = useState<DealLink[]>([]);
@@ -337,6 +340,17 @@ export default function CompanyDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={() => {
+            onOpenChange(false);
+            router.push(`/pipeline/${company.id}`);
+          }}
+          className="absolute right-10 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          title="Open full page"
+        >
+          <Expand className="h-4 w-4" />
+          <span className="sr-only">Open full page</span>
+        </button>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl">
             <Building2 className="h-6 w-6" />
