@@ -12,9 +12,3 @@ output "db_username" {
   description = "The database username"
   value       = aws_db_instance.default.username
 }
-
-output "db_password" {
-  description = "The database password"
-  sensitive   = true
-  value       = random_password.password.result
-}
