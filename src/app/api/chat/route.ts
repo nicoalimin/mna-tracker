@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentGraph, AIMessage } from "@/lib/agent";
-import { createClient } from "@supabase/supabase-js";
 import { BaseMessage } from "@langchain/core/messages";
 import { toUIMessageStream, toBaseMessages } from "@ai-sdk/langchain";
 import { createUIMessageStreamResponse, UIMessage } from "ai";
@@ -22,33 +21,24 @@ const convertLangChainMessageToVercelMessage = (message: BaseMessage) => {
   }
 };
 
-// Create a server-side Supabase client
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(url, key);
-}
+import { db } from "@/lib/db";
 
 /**
  * Fetch active investment thesis and screening criteria to provide context.
  */
 async function fetchContextData(): Promise<string> {
   try {
-    const supabase = getSupabaseClient();
     const contextParts: string[] = [];
 
-    // Fetch active investment thesis
-    const { data: theses } = await supabase
-      .from("investment_thesis")
-      .select("title, content")
-      .eq("is_active", true)
-      .order("updated_at", { ascending: false })
-      .limit(3);
+    // Fetch active investment thesis, using raw SQL
+    // Assuming 'is_active' is a boolean column
+    const thesisResult = await db.query(
+      `SELECT title, content FROM investment_thesis 
+       WHERE is_active = true 
+       ORDER BY updated_at DESC 
+       LIMIT 3`
+    );
+    const theses = thesisResult.rows;
 
     if (theses && theses.length > 0) {
       contextParts.push("## Current Investment Thesis\n");
@@ -60,10 +50,10 @@ async function fetchContextData(): Promise<string> {
     }
 
     // Fetch screening criteria
-    const { data: criteria } = await supabase
-      .from("criterias")
-      .select("name, prompt")
-      .order("created_at", { ascending: true });
+    const criteriaResult = await db.query(
+      `SELECT name, prompt FROM criterias ORDER BY created_at ASC`
+    );
+    const criteria = criteriaResult.rows;
 
     if (criteria && criteria.length > 0) {
       contextParts.push("## Screening Criteria\n");

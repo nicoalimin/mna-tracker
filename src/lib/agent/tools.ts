@@ -5,20 +5,9 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
+import { db } from "@/lib/db";
 import { logger } from "./logger";
 
-// Create a server-side Supabase client
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(url, key);
-}
 
 const PROJECT_CODENAME_PATTERN = /\bProject\s+[A-Za-z0-9][A-Za-z0-9\-]*(?:\s+[A-Za-z0-9][A-Za-z0-9\-]*){0,3}\b/gi;
 
@@ -36,39 +25,34 @@ async function resolveProjectCodenamesForWebSearch(query: string): Promise<{
     return { resolvedQuery: query, replacements: [], removed: [] };
   }
 
-  let supabase;
-  try {
-    supabase = getSupabaseClient();
-  } catch (error) {
-    logger.warn(`Supabase not configured for codename resolution: ${(error as Error).message}`);
-    return { resolvedQuery: query, replacements: [], removed: [] };
-  }
-
   const uniqueMatches = Array.from(new Set(matches.map((m) => m.trim())));
   let resolvedQuery = query;
   const replacements: { codename: string; companyName: string }[] = [];
   const removed: string[] = [];
 
   for (const codename of uniqueMatches) {
-    const { data, error } = await supabase
-      .from("past_acquisitions")
-      .select("project_name,target_co_partner")
-      .ilike("project_name", codename)
-      .limit(1);
+    try {
+      const { rows } = await db.query(
+        `SELECT project_name, target_co_partner
+         FROM past_acquisitions
+         WHERE project_name ILIKE $1
+         LIMIT 1`,
+        [codename]
+      );
 
-    if (error) {
-      logger.error(`Codename lookup failed for '${codename}': ${error.message}`);
+      const match = rows.find((row) => row.target_co_partner && row.target_co_partner.trim().length > 0);
+
+      if (match) {
+        const companyName = match.target_co_partner.trim();
+        resolvedQuery = resolvedQuery.replaceAll(codename, companyName);
+        replacements.push({ codename, companyName });
+      } else {
+        resolvedQuery = resolvedQuery.replaceAll(codename, "");
+        removed.push(codename);
+      }
+    } catch (error) {
+      logger.error(`Codename lookup failed for '${codename}': ${(error as Error).message}`);
       continue;
-    }
-
-    const match = data?.find((row) => row.target_co_partner && row.target_co_partner.trim().length > 0);
-    if (match) {
-      const companyName = match.target_co_partner.trim();
-      resolvedQuery = resolvedQuery.replaceAll(codename, companyName);
-      replacements.push({ codename, companyName });
-    } else {
-      resolvedQuery = resolvedQuery.replaceAll(codename, "");
-      removed.push(codename);
     }
   }
 
@@ -148,21 +132,22 @@ export const getDataSchema = tool(
   async () => {
     logger.debug("🔧 TOOL CALLED: get_data_schema()");
 
-    // Get row count from Supabase
+    // Get row count from Postgres
     let rowCount = 0;
     try {
-      const supabase = getSupabaseClient();
-      const { count } = await supabase
-        .from("companies")
-        .select("*", { count: "exact", head: true });
-      rowCount = count || 0;
+      // Get counts to show data volume
+      const companiesCountRes = await db.query('SELECT COUNT(*) as count FROM companies');
+      rowCount = parseInt(companiesCountRes.rows[0]?.count || "0");
+
+      // We can also let the user know about past acquisitions count if needed, but the prompt asks for companies data info
+      // keeping it simple to match previous output structure
     } catch (error) {
       logger.error(`Error getting row count: ${(error as Error).message}`);
     }
 
     const columnsInfo = companiesSchema.map((col) => `  - ${col.name} (${col.type})`);
 
-    const result = `## Companies Data Schema
+    const result = `## Database Schema for M&A Tracker
 
 **Table:** companies
 **Total Rows:** ${rowCount}
@@ -215,12 +200,8 @@ export const queryCompanies = tool(
     );
 
     try {
-      const supabase = getSupabaseClient();
-
-      let query = supabase
-        .from("companies")
-        .select(
-          `
+      let queryText = `
+        SELECT
           id,
           entry_id,
           target,
@@ -233,41 +214,56 @@ export const queryCompanies = tool(
           ev_2024,
           ebitda_margin_2024,
           ev_ebitda_2024
-        `
-        )
-        .limit(Math.min(limit, 50));
+        FROM companies
+      `;
+
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIdx = 1;
 
       // Apply filters
       if (segment) {
-        query = query.ilike("segment", `%${segment}%`);
+        whereConditions.push(`segment ILIKE $${paramIdx++}`);
+        params.push(`%${segment}%`);
       }
       if (geography) {
-        query = query.ilike("geography", `%${geography}%`);
+        whereConditions.push(`geography ILIKE $${paramIdx++}`);
+        params.push(`%${geography}%`);
       }
       if (watchlist_status) {
-        query = query.ilike("watchlist_status", `%${watchlist_status}%`);
+        whereConditions.push(`watchlist_status ILIKE $${paramIdx++}`);
+        params.push(`%${watchlist_status}%`);
       }
       if (min_revenue !== undefined) {
-        query = query.gte("revenue_2024_usd_mn", min_revenue);
+        whereConditions.push(`revenue_2024_usd_mn >= $${paramIdx++}`);
+        params.push(min_revenue);
       }
       if (max_revenue !== undefined) {
-        query = query.lte("revenue_2024_usd_mn", max_revenue);
+        whereConditions.push(`revenue_2024_usd_mn <= $${paramIdx++}`);
+        params.push(max_revenue);
       }
       if (min_ebitda !== undefined) {
-        query = query.gte("ebitda_2024_usd_mn", min_ebitda);
+        whereConditions.push(`ebitda_2024_usd_mn >= $${paramIdx++}`);
+        params.push(min_ebitda);
       }
       if (search_term) {
-        query = query.or(
-          `target.ilike.%${search_term}%,segment.ilike.%${search_term}%,company_focus.ilike.%${search_term}%`
-        );
+        whereConditions.push(`(
+          target ILIKE $${paramIdx} OR 
+          segment ILIKE $${paramIdx} OR 
+          company_focus ILIKE $${paramIdx}
+        )`);
+        params.push(`%${search_term}%`);
+        paramIdx++;
       }
 
-      const { data: companies, error } = await query;
-
-      if (error) {
-        logger.error(`Query error: ${error.message}`);
-        return `**Query Error:** ${error.message}`;
+      if (whereConditions.length > 0) {
+        queryText += ` WHERE ${whereConditions.join(" AND ")}`;
       }
+
+      queryText += ` LIMIT $${paramIdx++}`;
+      params.push(Math.min(limit, 50));
+
+      const { rows: companies } = await db.query(queryText, params);
 
       if (!companies || companies.length === 0) {
         return "No companies found matching your criteria.";
@@ -278,9 +274,9 @@ export const queryCompanies = tool(
       const separator = "--- | --- | --- | --- | --- | --- | ---";
 
       const rows = companies.map((c) => {
-        const rev = c.revenue_2024_usd_mn ? `$${c.revenue_2024_usd_mn.toFixed(1)}` : "-";
-        const ebitda = c.ebitda_2024_usd_mn ? `$${c.ebitda_2024_usd_mn.toFixed(1)}` : "-";
-        const ev = c.ev_2024 ? `$${c.ev_2024.toFixed(1)}` : "-";
+        const rev = c.revenue_2024_usd_mn ? `$${(Number(c.revenue_2024_usd_mn)).toFixed(1)}` : "-";
+        const ebitda = c.ebitda_2024_usd_mn ? `$${(Number(c.ebitda_2024_usd_mn)).toFixed(1)}` : "-";
+        const ev = c.ev_2024 ? `$${(Number(c.ev_2024)).toFixed(1)}` : "-";
         return `${c.target || "N/A"} | ${c.segment || "-"} | ${c.geography || "-"} | ${c.watchlist_status || "-"} | ${rev} | ${ebitda} | ${ev}`;
       });
 
@@ -292,7 +288,7 @@ export const queryCompanies = tool(
       return result;
     } catch (error) {
       logger.error(`Query error: ${(error as Error).message}`);
-      return `**Error:** ${(error as Error).message}`;
+      return `**Query Error:** ${(error as Error).message}`;
     }
   },
   {
@@ -330,18 +326,19 @@ Returns:
 /**
  * Get aggregate statistics for companies.
  */
+/**
+ * Get aggregate statistics for companies.
+ */
 export const getCompanyStats = tool(
   async ({ group_by }: { group_by?: string }) => {
     logger.debug(`🔧 TOOL CALLED: get_company_stats(group_by='${group_by}')`);
 
     try {
-      const supabase = getSupabaseClient();
-
       // Get all companies for aggregation
-      const { data: companies, error } = await supabase
-        .from("companies")
-        .select(
-          `
+      // We select specific columns to avoid selecting everything if not needed, 
+      // but here we need these for stats.
+      const queryText = `
+        SELECT
           segment,
           geography,
           watchlist_status,
@@ -349,12 +346,9 @@ export const getCompanyStats = tool(
           ebitda_2024_usd_mn,
           ev_2024,
           ebitda_margin_2024
-        `
-        );
-
-      if (error) {
-        return `**Error:** ${error.message}`;
-      }
+        FROM companies
+      `;
+      const { rows: companies } = await db.query(queryText);
 
       if (!companies || companies.length === 0) {
         return "No companies in the database.";
@@ -365,10 +359,10 @@ export const getCompanyStats = tool(
       const withRevenue = companies.filter((c) => c.revenue_2024_usd_mn);
       const withEbitda = companies.filter((c) => c.ebitda_2024_usd_mn);
 
-      const totalRevenue = withRevenue.reduce((sum, c) => sum + (c.revenue_2024_usd_mn || 0), 0);
+      const totalRevenue = withRevenue.reduce((sum, c) => sum + (Number(c.revenue_2024_usd_mn) || 0), 0);
       const avgRevenue = withRevenue.length > 0 ? totalRevenue / withRevenue.length : 0;
 
-      const totalEbitda = withEbitda.reduce((sum, c) => sum + (c.ebitda_2024_usd_mn || 0), 0);
+      const totalEbitda = withEbitda.reduce((sum, c) => sum + (Number(c.ebitda_2024_usd_mn) || 0), 0);
       const avgEbitda = withEbitda.length > 0 ? totalEbitda / withEbitda.length : 0;
 
       let result = `## Company Statistics
@@ -401,11 +395,14 @@ export const getCompanyStats = tool(
           .sort((a, b) => b[1].length - a[1].length)
           .slice(0, 15)
           .forEach(([segment, items]) => {
-            const avgR = items.filter((i) => i.revenue_2024_usd_mn).length > 0
-              ? items.reduce((s, i) => s + (i.revenue_2024_usd_mn || 0), 0) / items.filter((i) => i.revenue_2024_usd_mn).length
+            const revItems = items.filter((i) => i.revenue_2024_usd_mn);
+            const ebitdaItems = items.filter((i) => i.ebitda_2024_usd_mn);
+
+            const avgR = revItems.length > 0
+              ? revItems.reduce((s, i) => s + (Number(i.revenue_2024_usd_mn) || 0), 0) / revItems.length
               : 0;
-            const avgE = items.filter((i) => i.ebitda_2024_usd_mn).length > 0
-              ? items.reduce((s, i) => s + (i.ebitda_2024_usd_mn || 0), 0) / items.filter((i) => i.ebitda_2024_usd_mn).length
+            const avgE = ebitdaItems.length > 0
+              ? ebitdaItems.reduce((s, i) => s + (Number(i.ebitda_2024_usd_mn) || 0), 0) / ebitdaItems.length
               : 0;
             result += `| ${segment} | ${items.length} | ${avgR.toFixed(1)} | ${avgE.toFixed(1)} |\n`;
           });
@@ -427,11 +424,14 @@ export const getCompanyStats = tool(
           .sort((a, b) => b[1].length - a[1].length)
           .slice(0, 15)
           .forEach(([geo, items]) => {
-            const avgR = items.filter((i) => i.revenue_2024_usd_mn).length > 0
-              ? items.reduce((s, i) => s + (i.revenue_2024_usd_mn || 0), 0) / items.filter((i) => i.revenue_2024_usd_mn).length
+            const revItems = items.filter((i) => i.revenue_2024_usd_mn);
+            const ebitdaItems = items.filter((i) => i.ebitda_2024_usd_mn);
+
+            const avgR = revItems.length > 0
+              ? revItems.reduce((s, i) => s + (Number(i.revenue_2024_usd_mn) || 0), 0) / revItems.length
               : 0;
-            const avgE = items.filter((i) => i.ebitda_2024_usd_mn).length > 0
-              ? items.reduce((s, i) => s + (i.ebitda_2024_usd_mn || 0), 0) / items.filter((i) => i.ebitda_2024_usd_mn).length
+            const avgE = ebitdaItems.length > 0
+              ? ebitdaItems.reduce((s, i) => s + (Number(i.ebitda_2024_usd_mn) || 0), 0) / ebitdaItems.length
               : 0;
             result += `| ${geo} | ${items.length} | ${avgR.toFixed(1)} | ${avgE.toFixed(1)} |\n`;
           });
@@ -472,23 +472,27 @@ export const getCompanyDetails = tool(
     logger.debug(`🔧 TOOL CALLED: get_company_details(company_name='${company_name}')`);
 
     try {
-      const supabase = getSupabaseClient();
-
-      const { data: companies, error } = await supabase
-        .from("companies")
-        .select("*")
-        .ilike("target", `%${company_name}%`)
-        .limit(1);
-
-      if (error) {
-        return `**Error:** ${error.message}`;
-      }
+      const { rows: companies } = await db.query(
+        `SELECT * FROM companies WHERE target ILIKE $1 LIMIT 1`,
+        [`%${company_name}%`]
+      );
 
       if (!companies || companies.length === 0) {
         return `No company found matching "${company_name}". Try a different search term or use query_companies to browse available companies.`;
       }
 
       const c = companies[0];
+
+      // Helper to format numbers safely
+      const num = (v: any) => v ? Number(v) : null;
+      const fmt = (v: any, suffix = "") => {
+        const n = num(v);
+        return n !== null ? n.toFixed(1) + suffix : "-";
+      };
+      const pct = (v: any) => {
+        const n = num(v);
+        return n !== null ? (n * 100).toFixed(1) + "%" : "-";
+      };
 
       const result = `## Company Details: ${c.target || "Unknown"}
 
@@ -505,18 +509,18 @@ export const getCompanyDetails = tool(
 ### Revenue (USD Millions)
 | Year | 2021 | 2022 | 2023 | 2024 |
 | --- | --- | --- | --- | --- |
-| Revenue | ${c.revenue_2021_usd_mn?.toFixed(1) || "-"} | ${c.revenue_2022_usd_mn?.toFixed(1) || "-"} | ${c.revenue_2023_usd_mn?.toFixed(1) || "-"} | ${c.revenue_2024_usd_mn?.toFixed(1) || "-"} |
-| Growth | - | ${c.revenue_cagr_2021_2022 ? (c.revenue_cagr_2021_2022 * 100).toFixed(1) + "%" : "-"} | ${c.revenue_cagr_2022_2023 ? (c.revenue_cagr_2022_2023 * 100).toFixed(1) + "%" : "-"} | ${c.revenue_cagr_2023_2024 ? (c.revenue_cagr_2023_2024 * 100).toFixed(1) + "%" : "-"} |
+| Revenue | ${fmt(c.revenue_2021_usd_mn)} | ${fmt(c.revenue_2022_usd_mn)} | ${fmt(c.revenue_2023_usd_mn)} | ${fmt(c.revenue_2024_usd_mn)} |
+| Growth | - | ${pct(c.revenue_cagr_2021_2022)} | ${pct(c.revenue_cagr_2022_2023)} | ${pct(c.revenue_cagr_2023_2024)} |
 
 ### EBITDA (USD Millions)
 | Year | 2021 | 2022 | 2023 | 2024 |
 | --- | --- | --- | --- | --- |
-| EBITDA | ${c.ebitda_2021_usd_mn?.toFixed(1) || "-"} | ${c.ebitda_2022_usd_mn?.toFixed(1) || "-"} | ${c.ebitda_2023_usd_mn?.toFixed(1) || "-"} | ${c.ebitda_2024_usd_mn?.toFixed(1) || "-"} |
-| Margin | ${c.ebitda_margin_2021 ? (c.ebitda_margin_2021 * 100).toFixed(1) + "%" : "-"} | ${c.ebitda_margin_2022 ? (c.ebitda_margin_2022 * 100).toFixed(1) + "%" : "-"} | ${c.ebitda_margin_2023 ? (c.ebitda_margin_2023 * 100).toFixed(1) + "%" : "-"} | ${c.ebitda_margin_2024 ? (c.ebitda_margin_2024 * 100).toFixed(1) + "%" : "-"} |
+| EBITDA | ${fmt(c.ebitda_2021_usd_mn)} | ${fmt(c.ebitda_2022_usd_mn)} | ${fmt(c.ebitda_2023_usd_mn)} | ${fmt(c.ebitda_2024_usd_mn)} |
+| Margin | ${pct(c.ebitda_margin_2021)} | ${pct(c.ebitda_margin_2022)} | ${pct(c.ebitda_margin_2023)} | ${pct(c.ebitda_margin_2024)} |
 
 ### Valuation (2024)
-- **Enterprise Value:** ${c.ev_2024 ? "$" + c.ev_2024.toFixed(1) + "M" : "N/A"}
-- **EV/EBITDA Multiple:** ${c.ev_ebitda_2024?.toFixed(1) || "N/A"}x
+- **Enterprise Value:** ${c.ev_2024 ? "$" + Number(c.ev_2024).toFixed(1) + "M" : "N/A"}
+- **EV/EBITDA Multiple:** ${c.ev_ebitda_2024 ? Number(c.ev_ebitda_2024).toFixed(1) + "x" : "N/A"}
 
 ${c.comments ? `### Comments\n${c.comments}` : ""}
 `;
@@ -704,12 +708,8 @@ export const queryPastAcquisitions = tool(
     );
 
     try {
-      const supabase = getSupabaseClient();
-
-      let query = supabase
-        .from("past_acquisitions")
-        .select(
-          `
+      let queryText = `
+        SELECT
           id,
           no,
           project_name,
@@ -727,38 +727,52 @@ export const queryPastAcquisitions = tool(
           year,
           pass_l0_screening,
           pass_all_5_l1_criteria
-        `
-        )
-        .limit(Math.min(limit, 50));
+        FROM past_acquisitions
+      `;
+
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIdx = 1;
 
       // Apply filters
       if (sector) {
-        query = query.ilike("sector", `%${sector}%`);
+        whereConditions.push(`sector ILIKE $${paramIdx++}`);
+        params.push(`%${sector}%`);
       }
       if (country) {
-        query = query.ilike("country", `%${country}%`);
+        whereConditions.push(`country ILIKE $${paramIdx++}`);
+        params.push(`%${country}%`);
       }
       if (status) {
-        query = query.ilike("status", `%${status}%`);
+        whereConditions.push(`status ILIKE $${paramIdx++}`);
+        params.push(`%${status}%`);
       }
       if (project_type) {
-        query = query.ilike("project_type", `%${project_type}%`);
+        whereConditions.push(`project_type ILIKE $${paramIdx++}`);
+        params.push(`%${project_type}%`);
       }
       if (year) {
-        query = query.eq("year", year);
+        whereConditions.push(`year = $${paramIdx++}`); // Assuming year is string/text based on interface
+        params.push(year);
       }
       if (search_term) {
-        query = query.or(
-          `project_name.ilike.%${search_term}%,target_co_partner.ilike.%${search_term}%,sector.ilike.%${search_term}%`
-        );
+        whereConditions.push(`(
+          project_name ILIKE $${paramIdx} OR
+          target_co_partner ILIKE $${paramIdx} OR
+          sector ILIKE $${paramIdx}
+        )`);
+        params.push(`%${search_term}%`);
+        paramIdx++;
       }
 
-      const { data: acquisitions, error } = await query;
-
-      if (error) {
-        logger.error(`Query error: ${error.message}`);
-        return `**Query Error:** ${error.message}`;
+      if (whereConditions.length > 0) {
+        queryText += " WHERE " + whereConditions.join(" AND ");
       }
+
+      queryText += ` LIMIT $${paramIdx}`;
+      params.push(Math.min(limit, 50));
+
+      const { rows: acquisitions } = await db.query(queryText, params);
 
       if (!acquisitions || acquisitions.length === 0) {
         return "No past acquisitions found matching your criteria.";
@@ -819,6 +833,9 @@ Returns:
 /**
  * Compare a company against past acquisitions to evaluate fit.
  */
+/**
+ * Compare a company against past acquisitions to evaluate fit.
+ */
 export const compareWithPastAcquisitions = tool(
   async ({
     company_name,
@@ -842,17 +859,8 @@ export const compareWithPastAcquisitions = tool(
     );
 
     try {
-      const supabase = getSupabaseClient();
-
       // Get all past acquisitions for comparison
-      const { data: acquisitions, error } = await supabase
-        .from("past_acquisitions")
-        .select("*");
-
-      if (error) {
-        logger.error(`Query error: ${error.message}`);
-        return `**Query Error:** ${error.message}`;
-      }
+      const { rows: acquisitions } = await db.query("SELECT * FROM past_acquisitions");
 
       if (!acquisitions || acquisitions.length === 0) {
         return "No past acquisitions data available for comparison.";
@@ -876,7 +884,8 @@ export const compareWithPastAcquisitions = tool(
       // Calculate statistics from comparable deals
       const parseNumeric = (val: string | null | undefined): number | null => {
         if (!val) return null;
-        const num = parseFloat(val.replace(/[,$%]/g, ""));
+        if (typeof val === 'number') return val;
+        const num = parseFloat(val.toString().replace(/[,$%]/g, ""));
         return isNaN(num) ? null : num;
       };
 
@@ -1067,22 +1076,18 @@ Returns:
 /**
  * Get details of a specific past acquisition.
  */
+/**
+ * Get details of a specific past acquisition.
+ */
 export const getPastAcquisitionDetails = tool(
   async ({ project_name }: { project_name: string }) => {
     logger.debug(`🔧 TOOL CALLED: get_past_acquisition_details(project_name='${project_name}')`);
 
     try {
-      const supabase = getSupabaseClient();
-
-      const { data: acquisitions, error } = await supabase
-        .from("past_acquisitions")
-        .select("*")
-        .ilike("project_name", `%${project_name}%`)
-        .limit(1);
-
-      if (error) {
-        return `**Error:** ${error.message}`;
-      }
+      const { rows: acquisitions } = await db.query(
+        `SELECT * FROM past_acquisitions WHERE project_name ILIKE $1 LIMIT 1`,
+        [`%${project_name}%`]
+      );
 
       if (!acquisitions || acquisitions.length === 0) {
         return `No past acquisition found matching "${project_name}". Try a different search term or use query_past_acquisitions to browse available deals.`;
@@ -1090,77 +1095,81 @@ export const getPastAcquisitionDetails = tool(
 
       const a = acquisitions[0];
 
-      const result = `## Past Acquisition Details: ${a.project_name || "Unknown"}
+      // Helper for safely formatting numbers/strings
+      const val = (v: any) => v || "N/A";
+      const usd = (v: any) => v ? `$${v}M` : "N/A";
+
+      const result = `## Past Acquisition Details: ${val(a.project_name)}
 
 ### Basic Information
-- **No:** ${a.no || "N/A"}
-- **Project Type:** ${a.project_type || "N/A"}
-- **Target Company/Partner:** ${a.target_co_partner || "N/A"}
-- **Seller:** ${a.seller || "N/A"}
-- **Target Company Type:** ${a.target_co_company_type || "N/A"}
-- **Country:** ${a.country || "N/A"}
-- **Sector:** ${a.sector || "N/A"}
-- **Year:** ${a.year || "N/A"}
+- **No:** ${val(a.no)}
+- **Project Type:** ${val(a.project_type)}
+- **Target Company/Partner:** ${val(a.target_co_partner)}
+- **Seller:** ${val(a.seller)}
+- **Target Company Type:** ${val(a.target_co_company_type)}
+- **Country:** ${val(a.country)}
+- **Sector:** ${val(a.sector)}
+- **Year:** ${val(a.year)}
 
 ### Deal Metrics
-- **EV (100%):** $${a.ev_100_pct_usd_m || "N/A"}M
-- **Equity Value:** $${a.equity_value || "N/A"}M
-- **Estimated Debt:** $${a.estimated_debt_usd_m || "N/A"}M
-- **Investment Value:** $${a.investment_value || "N/A"}M
-- **Stake:** ${a.stake || "N/A"}
+- **EV (100%):** ${usd(a.ev_100_pct_usd_m)}
+- **Equity Value:** ${usd(a.equity_value)}
+- **Estimated Debt:** ${usd(a.estimated_debt_usd_m)}
+- **Investment Value:** ${usd(a.investment_value)}
+- **Stake:** ${val(a.stake)}
 
 ### Financial Performance
-- **Revenue:** $${a.revenue_usd_m || "N/A"}M
-- **EBITDA:** $${a.ebitda_usd_m || "N/A"}M
-- **Net Income:** $${a.net_income_usd_m || "N/A"}M
+- **Revenue:** ${usd(a.revenue_usd_m)}
+- **EBITDA:** ${usd(a.ebitda_usd_m)}
+- **Net Income:** ${usd(a.net_income_usd_m)}
 - **EBITDA Margin:** ${a.ebitda_margin_pct || "N/A"}%
 - **NIM:** ${a.nim_pct || "N/A"}%
-- **FCF Conversion:** ${a.fcf_conv || "N/A"}
+- **FCF Conversion:** ${val(a.fcf_conv)}
 
 ### Historical Financials
 | Year | 2021 | 2022 | 2023 | 2024 |
 | --- | --- | --- | --- | --- |
-| Revenue ($M) | ${a.revenue_2021_usd_m || "-"} | ${a.revenue_2022_usd_m || "-"} | ${a.revenue_2023_usd_m || "-"} | ${a.revenue_2024_usd_m || "-"} |
-| EBITDA ($M) | ${a.ebitda_2021_usd_m || "-"} | ${a.ebitda_2022_usd_m || "-"} | ${a.ebitda_2023_usd_m || "-"} | ${a.ebitda_2024_usd_m || "-"} |
-| EBITDA Margin | ${a.ebitda_margin_2021 || "-"} | ${a.ebitda_margin_2022 || "-"} | ${a.ebitda_margin_2023 || "-"} | ${a.ebitda_margin_2024 || "-"} |
+| Revenue ($M) | ${val(a.revenue_2021_usd_m)} | ${val(a.revenue_2022_usd_m)} | ${val(a.revenue_2023_usd_m)} | ${val(a.revenue_2024_usd_m)} |
+| EBITDA ($M) | ${val(a.ebitda_2021_usd_m)} | ${val(a.ebitda_2022_usd_m)} | ${val(a.ebitda_2023_usd_m)} | ${val(a.ebitda_2024_usd_m)} |
+| EBITDA Margin | ${val(a.ebitda_margin_2021)} | ${val(a.ebitda_margin_2022)} | ${val(a.ebitda_margin_2023)} | ${val(a.ebitda_margin_2024)} |
 
 ### Growth Metrics
-- **2021-2022 CAGR:** ${a.cagr_2021_2022 || "N/A"}
-- **2022-2023 CAGR:** ${a.cagr_2022_2023 || "N/A"}
-- **2023-2024 CAGR:** ${a.cagr_2023_2024 || "N/A"}
-- **Revenue CAGR (L3Y):** ${a.revenue_cagr_l3y || "N/A"}
-- **Revenue Drop Count:** ${a.revenue_drop_count || "N/A"}
+- **2021-2022 CAGR:** ${val(a.cagr_2021_2022)}
+- **2022-2023 CAGR:** ${val(a.cagr_2022_2023)}
+- **2023-2024 CAGR:** ${val(a.cagr_2023_2024)}
+- **Revenue CAGR (L3Y):** ${val(a.revenue_cagr_l3y)}
+- **Revenue Drop Count:** ${val(a.revenue_drop_count)}
 
 ### Status & Screening
-- **Internal Stage:** ${a.internal_stage || "N/A"}
-- **Status:** ${a.status || "N/A"}
-- **Prioritization:** ${a.prioritization || "N/A"}
-- **Source:** ${a.source || "N/A"} (${a.type_of_source || "N/A"})
-- **Internal Source:** ${a.internal_source || "N/A"}
-- **Name of Advisors:** ${a.name_of_advisors || "N/A"}
+- **Internal Stage:** ${val(a.internal_stage)}
+- **Status:** ${val(a.status)}
+- **Prioritization:** ${val(a.prioritization)}
+- **Source:** ${val(a.source)} (${val(a.type_of_source)})
+- **Internal Source:** ${val(a.internal_source)}
+- **Name of Advisors:** ${val(a.name_of_advisors)}
 
 ### Screening Results
-- **L0 Date:** ${a.l0_date || "N/A"}
-- **Pass L0 Screening:** ${a.pass_l0_screening || "N/A"}
-- **Reason to Drop:** ${a.reason_to_drop || "N/A"}
-- **On Hold Reason:** ${a.on_hold_reason || "N/A"}
+- **L0 Date:** ${val(a.l0_date)}
+- **Pass L0 Screening:** ${val(a.pass_l0_screening)}
+- **Reason to Drop:** ${val(a.reason_to_drop)}
+- **On Hold Reason:** ${val(a.on_hold_reason)}
 
 ### L1 Criteria Assessment
-- **Vision Alignment (>25% priority revenue):** ${a.vision_alignment_25pct_revenue || "N/A"}
-- **Priority Geography (>50% US/JP/KR/TW/CN/ID):** ${a.priority_geography_50pct_revenue || "N/A"}
-- **EV Value (<$1B):** ${a.ev_value_under_1b || "N/A"}
-- **Revenue Stability (no consecutive drop):** ${a.revenue_stability_no_consecutive_drop || "N/A"}
-- **EBITDA >10% over L3Y:** ${a.ebitda_over_10pct_l3y || "N/A"}
-- **Pass All 5 L1 Criteria:** ${a.pass_all_5_l1_criteria || "N/A"}
-- **Willingness to Sell:** ${a.willingness_to_sell || "N/A"}
+- **Vision Alignment (>25% priority revenue):** ${val(a.vision_alignment_25pct_revenue)}
+- **Priority Geography (>50% US/JP/KR/TW/CN/ID):** ${val(a.priority_geography_50pct_revenue)}
+- **EV Value (<$1B):** ${val(a.ev_value_under_1b)}
+- **Revenue Stability (no consecutive drop):** ${val(a.revenue_stability_no_consecutive_drop)}
+- **EBITDA >10% over L3Y:** ${val(a.ebitda_over_10pct_l3y)}
+- **Pass All 5 L1 Criteria:** ${val(a.pass_all_5_l1_criteria)}
+- **Willingness to Sell:** ${val(a.willingness_to_sell)}
 
 ### Product & Strategic Fit
-- **Main Products:** ${a.main_products || "N/A"}
-- **Company Website:** ${a.company_website || "N/A"}
-- **Fit with Priority Product Groups:** ${a.fit_with_priority_product_groups || "N/A"}
-- **Details on Product Fit:** ${a.details_on_product_fit || "N/A"}
-- **% Revenue from Priority Segments:** ${a.pct_revenue_from_priority_segments || "N/A"}
-- **Geography Breakdown:** ${a.geography_breakdown_of_revenue || "N/A"}
+- **Main Products:** ${val(a.main_products)}
+- **Company Website:** ${val(a.company_website)}
+- **Fit with Priority Product Groups:** ${val(a.fit_with_priority_product_groups)}
+- **Details on Product Fit:** ${val(a.details_on_product_fit)}
+- **% Revenue from Priority Segments:** ${val(a.pct_revenue_from_priority_segments)}
+- **Geography Breakdown:** ${val(a.geography_breakdown_of_revenue)}
 
 ${a.comments ? `### Comments\n${a.comments}` : ""}
 ${a.assumption ? `### Assumptions\n${a.assumption}` : ""}
@@ -1282,16 +1291,17 @@ export const invenPaidDataSourceSearch = tool(
     );
 
     try {
-      const supabase = getSupabaseClient();
-
       // First, check cache for matching companies
-      const { data: cachedResults, error: cacheError } = await supabase
-        .from("inven_cache")
-        .select("inven_company_id, domain, inven_company_name, website")
-        .or(`inven_company_name.ilike.%${search_prompt}%,description.ilike.%${search_prompt}%`)
-        .limit(number_of_results);
+      // We search in name and description
+      const { rows: cachedResults } = await db.query(
+        `SELECT inven_company_id, domain, inven_company_name, website
+         FROM inven_cache
+         WHERE inven_company_name ILIKE $1 OR description ILIKE $1
+         LIMIT $2`,
+        [`%${search_prompt}%`, number_of_results]
+      );
 
-      if (!cacheError && cachedResults && cachedResults.length > 0) {
+      if (cachedResults && cachedResults.length > 0) {
         logger.debug(`✓ Found ${cachedResults.length} cached results`);
 
         const rows = cachedResults.map((c) =>
@@ -1446,7 +1456,6 @@ export const invenPaidDataSourceEnrichment = tool(
     }
 
     try {
-      const supabase = getSupabaseClient();
       const apiKey = process.env.INVEN_API_KEY;
 
       if (!apiKey) {
@@ -1525,14 +1534,26 @@ export const invenPaidDataSourceEnrichment = tool(
           updated_at: new Date().toISOString(),
         };
 
-        const { error: upsertError } = await supabase
-          .from("inven_cache")
-          .upsert(cacheRecord, { onConflict: "inven_company_id" });
+        try {
+          // Construct UPSERT query
+          const cols = Object.keys(cacheRecord);
+          // @ts-ignore
+          const vals = Object.values(cacheRecord);
+          const params = vals.map((_, i) => `$${i + 1}`);
+          const setClause = cols
+            .map((col, i) => `${col} = EXCLUDED.${col}`)
+            .join(", ");
 
-        if (upsertError) {
-          logger.error(`Cache upsert error for ${basic.companyId}: ${upsertError.message}`);
-        } else {
+          await db.query(
+            `INSERT INTO inven_cache (${cols.join(", ")})
+             VALUES (${params.join(", ")})
+             ON CONFLICT (inven_company_id)
+             DO UPDATE SET ${setClause}`,
+            vals
+          );
           logger.debug(`✓ Cached company ${basic.companyId}`);
+        } catch (upsertError) {
+          logger.error(`Cache upsert error for ${basic.companyId}: ${(upsertError as Error).message}`);
         }
 
         enrichedCompanies.push({
@@ -1610,35 +1631,47 @@ export const queryMeetingNotes = tool(
     );
 
     try {
-      const supabase = getSupabaseClient();
-
-      let query = supabase
-        .from("minutes_of_meeting")
-        .select("*")
-        .order('file_date', { ascending: false })
-        .limit(Math.min(limit, 20));
+      let queryText = "SELECT * FROM minutes_of_meeting";
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIdx = 1;
 
       // Apply filters
       if (company_name) {
-        query = query.or(`raw_notes.ilike.%${company_name}%,structured_notes.ilike.%${company_name}%,matched_companies.ilike.%${company_name}%`);
+        whereConditions.push(`(
+          raw_notes ILIKE $${paramIdx} OR
+          structured_notes ILIKE $${paramIdx} OR
+          matched_companies ILIKE $${paramIdx}
+        )`);
+        params.push(`%${company_name}%`);
+        paramIdx++;
       }
 
       if (tag) {
-        query = query.contains('tags', [tag]);
+        // Assuming tags is text[] or jsonb
+        whereConditions.push(`tags @> ARRAY[$${paramIdx}]::text[]`);
+        params.push(tag);
+        paramIdx++;
       }
 
       if (search_term) {
-        query = query.or(
-          `file_name.ilike.%${search_term}%,raw_notes.ilike.%${search_term}%,structured_notes.ilike.%${search_term}%`
-        );
+        whereConditions.push(`(
+          file_name ILIKE $${paramIdx} OR
+          raw_notes ILIKE $${paramIdx} OR
+          structured_notes ILIKE $${paramIdx}
+        )`);
+        params.push(`%${search_term}%`);
+        paramIdx++;
       }
 
-      const { data: notes, error } = await query;
-
-      if (error) {
-        logger.error(`Query error: ${error.message}`);
-        return `**Query Error:** ${error.message}`;
+      if (whereConditions.length > 0) {
+        queryText += " WHERE " + whereConditions.join(" AND ");
       }
+
+      queryText += ` ORDER BY file_date DESC LIMIT $${paramIdx}`;
+      params.push(Math.min(limit, 20));
+
+      const { rows: notes } = await db.query(queryText, params);
 
       if (!notes || notes.length === 0) {
         return "No meeting notes found matching your criteria.";

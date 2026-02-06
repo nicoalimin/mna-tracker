@@ -3,22 +3,10 @@
  * Handles POST (upload) and GET (list) requests for meeting notes
  */
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { db } from "@/lib/db";
 import { uploadFile, getSignedUrl, generateMeetingNoteKey, downloadFile } from "@/lib/s3";
 import { extractTextFromFile } from "@/lib/fileExtractor";
 import { processFileContent } from "@/lib/file_processing_agent";
-
-// Create a server-side Supabase client
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(url, key);
-}
 
 /**
  * POST - Upload a new meeting note file
@@ -39,21 +27,18 @@ export async function POST(request: NextRequest) {
     const s3Key = key;
     const fileType = contentType || "application/octet-stream";
 
-    const supabase = getSupabaseClient();
-
     // Initial insert with 'processing' status
-    const { data: initialData, error: insertError } = await supabase
-      .from("minutes_of_meeting")
-      .insert({
-        file_name: fileName,
-        file_link: s3Key,
-        processing_status: 'processing'
-      })
-      .select()
-      .single();
+    const insertResult = await db.query(
+      `INSERT INTO minutes_of_meeting (file_name, file_link, processing_status)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [fileName, s3Key, 'processing']
+    );
 
-    if (insertError || !initialData) {
-      console.error("Database insert error:", insertError);
+    const initialData = insertResult.rows[0];
+
+    if (!initialData) {
+      console.error("Database insert error");
       return NextResponse.json(
         { error: "Failed to create meeting note record" },
         { status: 500 }
@@ -80,35 +65,43 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. Update the record with full technical results
-      await supabase
-        .from("minutes_of_meeting")
-        .update({
-          raw_notes: rawText,
-          structured_notes: structuredResult ? JSON.stringify(structuredResult, null, 2) : null,
-          tags: tags,
-          matched_companies: matched_companies,
-          file_date: structuredResult?.file_date || null,
-          processing_status: 'completed'
-        })
-        .eq('id', initialData.id);
+      await db.query(
+        `UPDATE minutes_of_meeting
+         SET raw_notes = $1,
+             structured_notes = $2,
+             tags = $3,
+             matched_companies = $4,
+             file_date = $5,
+             processing_status = $6
+         WHERE id = $7`,
+        [
+          rawText,
+          structuredResult ? JSON.stringify(structuredResult, null, 2) : null,
+          tags,
+          JSON.stringify(matched_companies),
+          structuredResult?.file_date || null,
+          'completed',
+          initialData.id
+        ]
+      );
 
     } catch (processError) {
       console.error("Error during file processing:", processError);
-      await supabase
-        .from("minutes_of_meeting")
-        .update({
-          processing_status: 'failed',
-          raw_notes: rawText || "Extraction failed"
-        })
-        .eq('id', initialData.id);
+      await db.query(
+        `UPDATE minutes_of_meeting
+         SET processing_status = $1,
+             raw_notes = $2
+         WHERE id = $3`,
+        ['failed', rawText || "Extraction failed", initialData.id]
+      );
     }
 
     // Fetch the updated record
-    const { data: updatedData } = await supabase
-      .from("minutes_of_meeting")
-      .select("*")
-      .eq('id', initialData.id)
-      .single();
+    const updatedResult = await db.query(
+      `SELECT * FROM minutes_of_meeting WHERE id = $1`,
+      [initialData.id]
+    );
+    const updatedData = updatedResult.rows[0];
 
     const signedUrl = await getSignedUrl(s3Key);
 
@@ -133,19 +126,10 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("minutes_of_meeting")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Database query error:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch meeting notes" },
-        { status: 500 }
-      );
-    }
+    const result = await db.query(
+      `SELECT * FROM minutes_of_meeting ORDER BY created_at DESC`
+    );
+    const data = result.rows;
 
     // Generate signed URLs for all files
     const notesWithUrls = await Promise.all(
@@ -193,19 +177,25 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("minutes_of_meeting")
-      .update(updates)
-      .eq("id", id)
-      .select()
-      .single();
+    // Construct dynamic update query
+    const keys = Object.keys(updates);
+    if (keys.length === 0) {
+      return NextResponse.json({ success: true, data: null }); // Nothing to update
+    }
 
-    if (error) {
-      console.error("Database update error:", error);
+    const setClause = keys.map((key, index) => `${key} = $${index + 2}`).join(", ");
+    const values = keys.map(key => updates[key]);
+
+    // Add ID as the first parameter
+    const query = `UPDATE minutes_of_meeting SET ${setClause} WHERE id = $1 RETURNING *`;
+    const result = await db.query(query, [id, ...values]);
+
+    const data = result.rows[0];
+
+    if (!data) {
       return NextResponse.json(
-        { error: "Failed to update meeting note" },
-        { status: 500 }
+        { error: "Failed to update meeting note or note not found" },
+        { status: 404 }
       );
     }
 

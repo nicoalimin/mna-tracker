@@ -1,22 +1,6 @@
-/**
- * API Route for individual Meeting Note operations
- * Handles DELETE requests for specific meeting notes
- */
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { db } from "@/lib/db";
 import { deleteFile } from "@/lib/s3";
-
-// Create a server-side Supabase client
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(url, key);
-}
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -40,17 +24,15 @@ export async function DELETE(
       );
     }
 
-    const supabase = getSupabaseClient();
-
     // First, get the record to find the S3 key
-    const { data: record, error: fetchError } = await supabase
-      .from("minutes_of_meeting")
-      .select("file_link")
-      .eq("id", id)
-      .single();
+    const { rows } = await db.query(
+      `SELECT file_link FROM minutes_of_meeting WHERE id = $1`,
+      [id]
+    );
 
-    if (fetchError || !record) {
-      console.error("Record not found:", fetchError);
+    const record = rows[0];
+
+    if (!record) {
       return NextResponse.json(
         { error: "Meeting note not found" },
         { status: 404 }
@@ -66,18 +48,7 @@ export async function DELETE(
     }
 
     // Delete from database
-    const { error: deleteError } = await supabase
-      .from("minutes_of_meeting")
-      .delete()
-      .eq("id", id);
-
-    if (deleteError) {
-      console.error("Database delete error:", deleteError);
-      return NextResponse.json(
-        { error: "Failed to delete meeting note record" },
-        { status: 500 }
-      );
-    }
+    await db.query(`DELETE FROM minutes_of_meeting WHERE id = $1`, [id]);
 
     return NextResponse.json({
       success: true,

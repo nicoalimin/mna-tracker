@@ -1,17 +1,5 @@
 import levenshtein from 'fast-levenshtein';
-import { createClient } from "@supabase/supabase-js";
-
-// Create a server-side Supabase client
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(url, key);
-}
+import { db } from "@/lib/db";
 
 interface MatchResult {
   id: string;
@@ -30,18 +18,15 @@ export async function findBestCompanyMatch(
   searchName: string,
   threshold: number = 0.3
 ): Promise<MatchResult | null> {
-  const supabase = getSupabaseClient();
   const normalizedSearch = searchName.toLowerCase().trim();
 
   // 1. Fetch all candidate names from companies
-  const { data: companies } = await supabase
-    .from('companies')
-    .select('id, target');
+  const companiesResult = await db.query('SELECT id, target FROM companies');
+  const companies = companiesResult.rows;
 
   // 2. Fetch all candidate names from past_acquisitions
-  const { data: pastDeals } = await supabase
-    .from('past_acquisitions')
-    .select('id, project_name');
+  const pastDealsResult = await db.query('SELECT id, project_name FROM past_acquisitions');
+  const pastDeals = pastDealsResult.rows;
 
   let bestMatch: MatchResult | null = null;
   let minDistance = Infinity;
@@ -102,17 +87,14 @@ export async function findBestCompanyMatch(
  * Usage: Inject this list into the LLM context so it knows what companies exist.
  */
 export async function getAllCompanyReferences(): Promise<MatchResult[]> {
-  const supabase = getSupabaseClient();
 
   // 1. Fetch all candidate names from companies
-  const { data: companies } = await supabase
-    .from('companies')
-    .select('id, target');
+  const companiesResult = await db.query('SELECT id, target FROM companies');
+  const companies = companiesResult.rows;
 
   // 2. Fetch all candidate names from past_acquisitions
-  const { data: pastDeals } = await supabase
-    .from('past_acquisitions')
-    .select('id, project_name');
+  const pastDealsResult = await db.query('SELECT id, project_name FROM past_acquisitions');
+  const pastDeals = pastDealsResult.rows;
 
   const matches: MatchResult[] = [];
 

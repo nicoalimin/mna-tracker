@@ -1,20 +1,9 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
+import { db } from "@/lib/db";
 import { findBestCompanyMatch } from "../fuzzySearch";
 import { logger } from "../agent/logger";
 
-// Create a server-side Supabase client
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error("Supabase environment variables are not configured");
-  }
-
-  return createClient(url, key);
-}
 
 /**
  * Tool for fuzzy searching companies or past acquisitions.
@@ -57,38 +46,30 @@ export const addCompanyNoteTool = tool(
   async ({ id, type, content, stage }: { id: string, type: 'company' | 'past_acquisition', content: string, stage?: string }) => {
     logger.debug(`🔧 TOOL CALLED: add_company_note(id='${id}', type='${type}')`);
     try {
-      const supabase = getSupabaseClient();
-
       if (type === 'company') {
-        const { error } = await supabase
-          .from('deal_notes')
-          .insert({
-            deal_id: id,
-            content: content,
-            stage: stage || 'Meeting Note'
-          });
-
-        if (error) throw error;
+        await db.query(
+          `INSERT INTO deal_notes (deal_id, content, stage)
+           VALUES ($1, $2, $3)`,
+          [id, content, stage || 'Meeting Note']
+        );
       } else {
         // For past acquisitions, update the 'notes' column
         // First get existing notes
-        const { data: deal } = await supabase
-          .from('past_acquisitions')
-          .select('notes')
-          .eq('id', id)
-          .single();
+        const result = await db.query(
+          `SELECT notes FROM past_acquisitions WHERE id = $1`,
+          [id]
+        );
+        const deal = result.rows[0];
 
         const existingNotes = deal?.notes || '';
         const updatedNotes = existingNotes
           ? `${existingNotes}\n---\n${content}`
           : content;
 
-        const { error } = await supabase
-          .from('past_acquisitions')
-          .update({ notes: updatedNotes })
-          .eq('id', id);
-
-        if (error) throw error;
+        await db.query(
+          `UPDATE past_acquisitions SET notes = $1 WHERE id = $2`,
+          [updatedNotes, id]
+        );
       }
 
       return `Successfully added note to ${type} ${id}`;
